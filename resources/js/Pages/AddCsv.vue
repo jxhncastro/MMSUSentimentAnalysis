@@ -1,156 +1,159 @@
 <script setup>
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
-import { Head } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { Head, useForm, Link } from '@inertiajs/vue3';
+import { ref, computed, onMounted } from 'vue';
 
-// State for the UI
 const isDragging = ref(false);
-const file = ref(null);
-const processing = ref(false);
-const progress = ref(0);
-const currentStep = ref(0);
+const terminalLogs = ref([]);
 
-// Steps for the "Model Process" visualization
+const form = useForm({
+    file: null,
+});
+
 const steps = [
-    { title: 'Uploading File', icon: '📂' },
-    { title: 'Cleaning Data', icon: '🧹' },
-    { title: 'Extracting Sentiments', icon: '🧠' },
-    { title: 'Updating Dashboard', icon: '📊' }
+    { title: 'Uploading', icon: '📂' },
+    { title: 'Data Cleaning', icon: '🧹' },
+    { title: 'AI Analysis', icon: '🧠' },
+    { title: 'Finalizing', icon: '📊' }
 ];
 
-// Handle File Selection
+// Helper to add logs with a typewriter effect
+const addLog = (msg) => {
+    terminalLogs.value.push({ id: Date.now(), text: msg });
+    // Keep only last 8 logs
+    if (terminalLogs.value.length > 8) terminalLogs.value.shift();
+};
+
 const handleFile = (event) => {
-    const selected = event.target.files ? event.target.files[0] : event.dataTransfer.files[0];
-    if (selected && selected.type === "text/csv") {
-        file.value = selected;
-        startSimulation();
+    const files = event.target.files || event.dataTransfer.files;
+    const selected = files[0];
+    if (!selected) return;
+
+    if (selected.name.endsWith('.csv')) {
+        form.file = selected;
+        submitFile();
     } else {
-        alert("Please upload a valid CSV file.");
+        alert("Please upload a CSV file.");
     }
     isDragging.value = false;
 };
 
-// Simulate the Backend Process (Mock Animation)
-const startSimulation = () => {
-    processing.value = true;
-    currentStep.value = 0;
-    progress.value = 0;
-
-    const interval = setInterval(() => {
-        progress.value += 1; // Increase progress bar
-        
-        // Switch steps based on progress percentage
-        if (progress.value < 30) currentStep.value = 0;
-        else if (progress.value < 60) currentStep.value = 1;
-        else if (progress.value < 90) currentStep.value = 2;
-        else currentStep.value = 3;
-
-        if (progress.value >= 100) {
-            clearInterval(interval);
-            setTimeout(() => {
-                alert("Process Complete! (Redirecting...)");
-                processing.value = false;
-                file.value = null; // Reset
-            }, 500);
+const submitFile = () => {
+    addLog(">> [SYS] Initializing upload for " + form.file.name);
+    
+    form.post(route('dataset.upload'), {
+        forceFormData: true,
+        onStart: () => {
+            addLog(">> [SYS] Transferring data to server...");
+        },
+        onSuccess: () => {
+            addLog(">> [SUCCESS] BERT Model prediction completed.");
+            addLog(">> [SYS] Database records updated successfully.");
+        },
+        onError: () => {
+            addLog(">> [ERROR] Connection to AI Model failed.");
         }
-    }, 50); // Speed of simulation
+    });
 };
+
+// This ensures the loading screen stays visible if processing OR if successful
+const showProcessingScreen = computed(() => form.processing || form.wasSuccessful);
+
+const currentStep = computed(() => {
+    if (form.wasSuccessful) return 4; // All steps done
+    if (form.processing) return 2;   // Middle of analysis
+    return 1;
+});
 </script>
 
 <template>
     <Head title="Add CSV Dataset" />
-
+    
     <DashboardLayout>
-        <div class="h-full flex flex-col">
-            
-            <h2 class="font-bold text-2xl text-gray-800 mb-6">Import New Dataset</h2>
+        <div class="h-full flex flex-col p-4">
+            <h2 class="font-bold text-2xl text-[#0c4b33] mb-6 uppercase tracking-tight">Data Management</h2>
 
-            <div class="bg-white flex-1 rounded-[30px] p-8 shadow-sm border border-gray-100 flex flex-col items-center justify-center relative overflow-hidden">
+            <div class="bg-white flex-1 rounded-[35px] p-10 shadow-sm border border-gray-100 flex flex-col items-center justify-center relative overflow-hidden min-h-[500px]">
                 
-                <div v-if="!processing" class="w-full max-w-xl transition-all duration-300">
+                <div v-if="!showProcessingScreen" class="w-full max-w-xl transition-all duration-500">
                     <div 
                         @dragover.prevent="isDragging = true"
                         @dragleave.prevent="isDragging = false"
                         @drop.prevent="handleFile"
                         :class="[
-                            'border-4 border-dashed rounded-3xl p-10 text-center transition-all duration-300 cursor-pointer flex flex-col items-center justify-center min-h-[300px]',
-                            isDragging ? 'border-green-500 bg-green-50 scale-105' : 'border-gray-200 hover:border-green-400 hover:bg-gray-50'
+                            'border-4 border-dashed rounded-[40px] p-10 text-center transition-all duration-300 cursor-pointer flex flex-col items-center justify-center min-h-[350px]',
+                            isDragging ? 'border-yellow-400 bg-green-50 scale-105' : 'border-gray-100 hover:border-[#0c4b33] hover:bg-gray-50'
                         ]"
                     >
-                        <div class="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-4 text-3xl">
+                        <div class="w-20 h-20 bg-green-100 text-[#0c4b33] rounded-full flex items-center justify-center mb-6 text-3xl shadow-inner">
                             📄
                         </div>
-
-                        <h3 class="text-xl font-bold text-gray-700 mb-2">
-                            {{ isDragging ? 'Drop it here!' : 'Drag & Drop your CSV file' }}
-                        </h3>
-                        <p class="text-gray-400 text-sm mb-6">or click to browse from your computer</p>
+                        <h3 class="text-2xl font-black text-gray-800 mb-2">Upload Dataset</h3>
+                        <p class="text-gray-400 text-sm mb-8 font-medium">Drag and drop your feedback .csv file here</p>
                         
                         <input type="file" accept=".csv" class="hidden" id="fileInput" @change="handleFile">
-                        
-                        <label for="fileInput" class="bg-gray-900 text-white px-8 py-3 rounded-full font-semibold hover:bg-gray-800 transition shadow-lg cursor-pointer">
+                        <label for="fileInput" class="bg-[#0c4b33] text-white px-10 py-4 rounded-2xl font-bold hover:bg-black transition shadow-xl cursor-pointer uppercase text-xs tracking-widest">
                             Browse Files
                         </label>
                     </div>
-
-                    <div class="mt-8 text-center">
-                        <p class="text-xs text-gray-400 uppercase tracking-widest font-bold">Supported Formats</p>
-                        <p class="text-sm text-gray-500 mt-1">.CSV (UTF-8 Encoded)</p>
-                    </div>
                 </div>
 
-                <div v-else class="w-full max-w-2xl">
+                <div v-else class="w-full max-w-2xl animate-in fade-in zoom-in duration-500">
                     
-                    <h3 class="text-center text-xl font-bold text-gray-800 mb-8 animate-pulse">
-                        Processing Dataset...
+                    <h3 class="text-center text-xl font-black mb-10 uppercase tracking-widest transition-colors duration-500"
+                        :class="form.wasSuccessful ? 'text-green-600' : 'text-[#0c4b33] animate-pulse'">
+                        {{ form.wasSuccessful ? '🎉 Processing Complete!' : '🤖 AI Model is Analyzing...' }}
                     </h3>
 
                     <div class="relative flex justify-between items-start mb-12">
-                        <div class="absolute top-5 left-0 w-full h-1 bg-gray-200 rounded-full -z-10"></div>
-                        <div class="absolute top-5 left-0 h-1 bg-green-500 rounded-full -z-10 transition-all duration-300" :style="{ width: progress + '%' }"></div>
-
+                        <div class="absolute top-5 left-0 w-full h-1 bg-gray-100 rounded-full -z-10"></div>
                         <div v-for="(step, index) in steps" :key="index" class="flex flex-col items-center w-1/4">
                             <div 
                                 :class="[
-                                    'w-10 h-10 rounded-full flex items-center justify-center text-lg border-2 transition-all duration-500',
-                                    index <= currentStep ? 'bg-green-500 border-green-500 text-white scale-110 shadow-lg' : 'bg-white border-gray-300 text-gray-300'
+                                    'w-12 h-12 rounded-full flex items-center justify-center text-lg border-4 transition-all duration-700',
+                                    index < currentStep ? 'bg-[#0c4b33] border-yellow-400 text-white scale-110 shadow-lg' : 'bg-white border-gray-100 text-gray-300'
                                 ]"
                             >
                                 <span v-if="index < currentStep">✓</span>
                                 <span v-else>{{ step.icon }}</span>
                             </div>
-                            <p 
-                                :class="[
-                                    'mt-3 text-xs font-bold uppercase tracking-wider text-center transition-colors',
-                                    index <= currentStep ? 'text-green-600' : 'text-gray-400'
-                                ]"
-                            >
+                            <p :class="['mt-4 text-[9px] font-black uppercase tracking-tighter text-center transition-colors', index < currentStep ? 'text-[#0c4b33]' : 'text-gray-300']">
                                 {{ step.title }}
                             </p>
                         </div>
                     </div>
 
-                    <div class="bg-gray-900 rounded-xl p-6 font-mono text-xs text-green-400 shadow-2xl h-48 overflow-hidden relative">
-                        <div class="absolute top-4 right-4 flex gap-2">
-                            <div class="w-3 h-3 rounded-full bg-red-500"></div>
-                            <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
-                            <div class="w-3 h-3 rounded-full bg-green-500"></div>
-                        </div>
-                        <div class="flex flex-col gap-2 mt-4 opacity-90">
-                            <p>> Initializing upload...</p>
-                            <p v-if="currentStep >= 0">> File received: {{ file.name }}</p>
-                            <p v-if="currentStep >= 1">> Cleaning null values...</p>
-                            <p v-if="currentStep >= 1">> Formatting text encoding...</p>
-                            <p v-if="currentStep >= 2" class="text-blue-300">> Running Sentiment Analysis Model (NLP)...</p>
-                            <p v-if="currentStep >= 2" class="text-blue-300">> Detecting emotions...</p>
-                            <p v-if="currentStep >= 3" class="text-white">> DONE. Redirecting to dashboard.</p>
-                            <p class="animate-pulse">_</p>
+                    <div class="bg-gray-900 rounded-3xl p-6 font-mono text-[11px] text-green-400 shadow-2xl h-48 overflow-hidden relative border-t-8 border-gray-800">
+                        <div class="flex flex-col gap-1.5">
+                            <p class="text-gray-500">>> [SYS] BERT v2.0 Initialization...</p>
+                            <p v-for="log in terminalLogs" :key="log.id" class="animate-in slide-in-from-left duration-300">
+                                {{ log.text }}
+                            </p>
+                            <p v-if="form.processing" class="animate-pulse text-yellow-500">| Analyzing text chunks...</p>
                         </div>
                     </div>
 
+                    <div v-if="form.wasSuccessful" class="mt-8 flex gap-4 justify-center animate-in slide-up-4 duration-1000">
+                        <Link href="/dashboard" class="bg-[#0c4b33] text-white px-8 py-3 rounded-xl font-bold hover:bg-black transition shadow-lg text-xs uppercase tracking-widest">
+                            View Dashboard
+                        </Link>
+                        <button @click="form.reset(); form.wasSuccessful = false" class="bg-gray-100 text-gray-600 px-8 py-3 rounded-xl font-bold hover:bg-gray-200 transition text-xs uppercase tracking-widest">
+                            Upload Another
+                        </button>
+                    </div>
                 </div>
 
             </div>
         </div>
     </DashboardLayout>
 </template>
+
+<style scoped>
+@keyframes slide-up {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+.slide-up-4 {
+    animation: slide-up 0.5s ease-out forwards;
+}
+</style>

@@ -1,91 +1,136 @@
 <script setup>
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import { Head } from '@inertiajs/vue3';
+
+// 1. Data for Top Performing
+const topPerformers = [
+    { rank: 1, unit: "University Registrar's Office", score: '98%', color: 'bg-yellow-400' },
+    { rank: 2, unit: 'University Library System', score: '94%', color: 'bg-gray-300' },
+    { rank: 3, unit: 'Accounting Office', score: '91%', color: 'bg-orange-400' },
+];
+
+// 2. Data for Needs Improvement (Lowest Positive / Highest Negative)
+const needsImprovement = [
+    { rank: 1, unit: 'Cash Management', issue: 'Wait Time', score: '64%' },
+    { rank: 2, unit: 'General Services Directorate', issue: 'Facility Maintenance', score: '68%' },
+    { rank: 3, unit: 'Health and Wellness Services', issue: 'Queue System', score: '72%' },
+];
 </script>
 
 <template>
-    <Head title="Dashboard" />
+    <Head title="MMSU Sentiment Dashboard" />
 
     <DashboardLayout>
-        <div class="grid grid-cols-4 gap-4 mb-6">
-            <div v-for="(label, index) in ['Total Feedback', 'Positive Comments', 'Negative Comments', 'Neutral Comments']" :key="index" 
-                 class="bg-green-500 rounded-2xl p-5 text-white shadow-sm relative overflow-hidden group hover:bg-green-600 transition">
-                <div class="relative z-10">
-                    <div class="text-[10px] opacity-90 uppercase tracking-widest font-semibold mb-1">{{ label }}</div>
-                    <div class="text-3xl font-bold">1,238</div>
-                </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-5 mb-8">
+            <div v-for="(item, index) in [
+                { label: 'Total Feedback', val: '4,120', color: 'bg-white border-gray-100 border text-gray-800' },
+                { label: 'Positive', val: '3,240', color: 'bg-[#0c4b33] text-white' },
+                { label: 'Negative', val: '542', color: 'bg-red-500 text-white' },
+                { label: 'Neutral', val: '338', color: 'bg-yellow-500 text-white' }
+            ]" :key="index" 
+                 class="rounded-[25px] p-6 shadow-sm transition hover:scale-105 duration-300 flex flex-col justify-between h-32"
+                 :class="item.color">
+                <div class="text-[9px] opacity-80 uppercase tracking-[0.2em] font-black leading-tight">{{ item.label }}</div>
+                <div class="text-3xl font-black">{{ item.val }}</div>
             </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             
-            <div class="lg:col-span-2 bg-white rounded-3xl p-6 shadow-sm border border-gray-100/50">
-                <h3 class="font-bold text-gray-800 mb-6 text-sm uppercase tracking-wide">SENTIMENT DISTRIBUTION</h3>
-                <div class="flex items-center justify-center h-48 gap-8">
-                    <div class="w-40 h-40 rounded-full bg-[conic-gradient(at_center,_#3b82f6_0deg_140deg,_#fbbf24_140deg_260deg,_#22c55e_260deg_360deg)] border-4 border-white shadow-lg relative">
-                        <div class="absolute inset-0 m-auto w-2 h-2 bg-white rounded-full"></div>
+            <div class="bg-gradient-to-br from-[#0c4b33] to-[#1a6e4d] rounded-[35px] p-8 shadow-sm text-white border-b-8 border-yellow-400">
+                 <div class="flex justify-between items-start mb-8">
+                    <div>
+                        <h3 class="font-black text-[10px] uppercase tracking-widest text-yellow-400">Excellence Awardees</h3>
+                        <p class="text-xl font-bold">Top Performing Units</p>
                     </div>
-                    <div class="space-y-3 text-sm">
-                        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-yellow-400"></span> Positive</div>
-                        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-blue-500"></span> Negative</div>
-                        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-green-500"></span> Neutral</div>
+                    <span class="text-2xl">🏆</span>
+                 </div>
+                 
+                 <div class="space-y-6">
+                    <div v-for="item in topPerformers" :key="item.rank" class="flex items-center justify-between group">
+                        <div class="flex items-center gap-4">
+                            <div :class="item.color" class="w-8 h-8 rounded-full flex items-center justify-center text-[#0c4b33] font-black text-xs shadow-sm">
+                                {{ item.rank }}
+                            </div>
+                            <div>
+                                <div class="text-xs font-black uppercase tracking-tight">{{ item.unit }}</div>
+                                <div class="text-[10px] opacity-60">High satisfaction rate</div>
+                            </div>
+                        </div>
+                        <span class="text-sm font-black text-yellow-400">{{ item.score }}</span>
                     </div>
-                </div>
+                 </div>
             </div>
 
-            <div class="lg:col-span-1 bg-green-400 rounded-3xl p-6 shadow-sm relative text-white flex flex-col items-center justify-center text-center">
-                 <h3 class="font-semibold mb-1 opacity-90 text-sm uppercase">RANKING</h3>
-                 <p class="text-[10px] mb-6 opacity-75">(According to Good Performance)</p>
+            <div class="bg-white rounded-[35px] p-8 shadow-sm border border-red-50 border-b-8 border-red-500">
+                 <div class="flex justify-between items-start mb-8">
+                    <div>
+                        <h3 class="font-black text-[10px] uppercase tracking-widest text-red-500">Action Required</h3>
+                        <p class="text-xl font-bold text-gray-800">Priority for Improvement</p>
+                    </div>
+                    <span class="text-2xl">⚠️</span>
+                 </div>
                  
-                 <div class="flex items-end gap-4">
-                     <span class="text-6xl font-black leading-none">1</span>
-                     <span class="text-lg font-medium mb-2">Registrar</span>
+                 <div class="space-y-6">
+                    <div v-for="item in needsImprovement" :key="item.rank" class="flex items-center justify-between group">
+                        <div class="flex items-center gap-4">
+                            <div class="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 font-black text-xs">
+                                {{ item.rank }}
+                            </div>
+                            <div>
+                                <div class="text-xs font-black text-gray-700 uppercase tracking-tight">{{ item.unit }}</div>
+                                <div class="text-[10px] text-red-400 font-bold uppercase tracking-tighter italic">Primary Issue: {{ item.issue }}</div>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-sm font-black text-red-500">{{ item.score }}</span>
+                            <div class="text-[8px] text-gray-400 font-bold uppercase">Positive</div>
+                        </div>
+                    </div>
                  </div>
             </div>
         </div>
 
-        <div class="bg-white rounded-3xl shadow-sm border border-gray-100/50 overflow-hidden">
-            <div class="p-6 flex justify-between items-end border-b border-gray-50">
-                <h3 class="font-bold text-gray-800 text-sm uppercase tracking-wide">RECENT FEEDBACK</h3>
-                <span class="text-xs text-gray-400 hover:text-gray-600 cursor-pointer transition">show 10</span>
+        <div class="bg-white rounded-[35px] shadow-sm border border-gray-50 overflow-hidden mb-8">
+            <div class="p-8 flex justify-between items-center">
+                <h3 class="font-black text-gray-400 text-[10px] uppercase tracking-[0.2em]">Live Feedback Analysis</h3>
+                <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                    <span class="text-[10px] font-bold text-gray-400 uppercase">System Active</span>
+                </div>
             </div>
             
-            <div class="p-4">
-                <div class="grid grid-cols-12 gap-4 bg-blue-500 text-white text-xs font-bold uppercase tracking-wider py-4 px-6 rounded-t-xl">
-                    <div class="col-span-2">Language</div>
-                    <div class="col-span-5">Feedback Text</div>
+            <div class="px-8 pb-8">
+                <div class="grid grid-cols-12 gap-4 bg-gray-50 text-gray-400 text-[9px] font-black uppercase tracking-widest py-3 px-6 rounded-xl mb-4 border border-gray-100">
+                    <div class="col-span-2">Operating Unit</div>
+                    <div class="col-span-6">Feedback Statement</div>
                     <div class="col-span-2 text-center">Sentiment</div>
-                    <div class="col-span-3 text-right">Sentiment Keyword</div>
+                    <div class="col-span-2 text-right">Model Confidence</div>
                 </div>
 
-                <div class="grid grid-cols-12 gap-4 py-4 px-6 border-b border-gray-100 hover:bg-gray-50 transition text-sm items-center">
-                    <div class="col-span-2 text-gray-600 font-medium">English</div>
-                    <div class="col-span-5 text-gray-800 truncate pr-4">The enrollment process was very fast and smooth today.</div>
-                    <div class="col-span-2 text-center">
-                        <span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold">Positive</span>
+                <div v-for="(row, idx) in [
+                    { unit: 'Registrar', text: 'Sobrang bilis ng pag-process ng TOR ko today!', sentiment: 'Positive', color: 'text-green-600 bg-green-50', conf: '98.2%' },
+                    { unit: 'Cashier', text: 'The queue at window 3 is not moving at all, very frustrating.', sentiment: 'Negative', color: 'text-red-600 bg-red-50', conf: '94.5%' },
+                    { unit: 'Medical Clinic', text: 'Nurse was helpful but the clinic needs more chairs.', sentiment: 'Neutral', color: 'text-yellow-600 bg-yellow-50', conf: '71.2%' }
+                ]" :key="idx" 
+                class="grid grid-cols-12 gap-4 py-4 px-6 border-b border-gray-50 hover:bg-gray-50/50 transition items-center group">
+                    <div class="col-span-2 text-[10px] font-black text-gray-800 uppercase">{{ row.unit }}</div>
+                    <div class="col-span-6 text-sm text-gray-600 italic group-hover:text-gray-900 transition pr-4">"{{ row.text }}"</div>
+                    <div class="col-span-2 flex justify-center">
+                        <span class="px-4 py-1 rounded-full text-[9px] font-black uppercase tracking-tighter" :class="row.color">
+                            {{ row.sentiment }}
+                        </span>
                     </div>
-                    <div class="col-span-3 text-right font-mono text-green-600">"fast", "smooth"</div>
-                </div>
-
-                <div class="grid grid-cols-12 gap-4 py-4 px-6 border-b border-gray-100 hover:bg-gray-50 transition text-sm items-center">
-                    <div class="col-span-2 text-gray-600 font-medium">Tagalog</div>
-                    <div class="col-span-5 text-gray-800 truncate pr-4">Sobrang bagal ng pila sa window 2, nakakainis.</div>
-                    <div class="col-span-2 text-center">
-                        <span class="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold">Negative</span>
-                    </div>
-                    <div class="col-span-3 text-right font-mono text-red-500">"bagal", "nakakainis"</div>
-                </div>
-
-                <div class="grid grid-cols-12 gap-4 py-4 px-6 hover:bg-gray-50 transition text-sm items-center">
-                    <div class="col-span-2 text-gray-600 font-medium">English</div>
-                    <div class="col-span-5 text-gray-800 truncate pr-4">I submitted my documents at 9 AM.</div>
-                    <div class="col-span-2 text-center">
-                        <span class="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold">Neutral</span>
-                    </div>
-                    <div class="col-span-3 text-right font-mono text-gray-400">N/A</div>
+                    <div class="col-span-2 text-right font-mono text-[11px] font-bold text-gray-400 group-hover:text-[#0c4b33]">{{ row.conf }}</div>
                 </div>
             </div>
         </div>
 
     </DashboardLayout>
 </template>
+
+<style scoped>
+.transition {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+</style>
