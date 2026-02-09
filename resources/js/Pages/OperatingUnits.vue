@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import { Head } from '@inertiajs/vue3';
 
@@ -54,14 +54,22 @@ const unitData = {
 
 const operatingUnits = Object.keys(unitData).sort();
 const selectedUnit = ref("University Registrar's Office");
+const selectedService = ref("All Services"); // Track selected service
 
+// Get services for selected unit + "All Services" option
 const services = computed(() => {
-    return unitData[selectedUnit.value] || ["General Service"];
+    const list = unitData[selectedUnit.value] || [];
+    return ["All Services", ...list];
+});
+
+// Reset service when unit changes
+watch(selectedUnit, () => {
+    selectedService.value = "All Services";
 });
 </script>
 
 <template>
-    <Head :title="`Analysis - ${selectedUnit}`" />
+    <Head :title="'Analysis - ' + selectedUnit" />
 
     <DashboardLayout>
         <div class="flex flex-col gap-6 h-full p-2">
@@ -86,12 +94,27 @@ const services = computed(() => {
             </div>
 
             <div class="flex flex-col gap-2">
-                <h3 class="text-[10px] font-bold text-gray-400 uppercase ml-2 tracking-widest">Available Services</h3>
-                <div class="bg-gradient-to-r from-[#0c4b33] to-[#1a6e4d] rounded-2xl py-4 px-8 text-white text-sm font-semibold flex gap-10 shadow-lg overflow-x-auto no-scrollbar border-b-4 border-yellow-400">
-                    <span v-for="service in services" :key="service" class="whitespace-nowrap flex items-center gap-3 animate-fade-in transition-all">
-                        <div class="w-1.5 h-1.5 bg-yellow-400 rounded-full"></div>
-                        {{ service }}
-                    </span>
+                <div class="flex justify-between items-center px-2">
+                    <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Select Service</h3>
+                    <span class="text-[10px] font-bold text-[#0c4b33] uppercase">{{ selectedService }}</span>
+                </div>
+                
+                <div class="bg-gradient-to-r from-[#0c4b33] to-[#1a6e4d] rounded-2xl py-4 px-6 shadow-lg overflow-x-auto no-scrollbar border-b-4 border-yellow-400">
+                    <div class="flex gap-3">
+                        <button 
+                            v-for="service in services" 
+                            :key="service" 
+                            @click="selectedService = service"
+                            class="whitespace-nowrap px-4 py-2 rounded-full text-xs font-bold transition-all duration-300 border"
+                            :class="[
+                                selectedService === service 
+                                ? 'bg-yellow-400 text-[#0c4b33] border-yellow-400 shadow-md scale-105' 
+                                : 'bg-white/10 text-white border-white/20 hover:bg-white/20 hover:border-white/40'
+                            ]"
+                        >
+                            {{ service }}
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -102,7 +125,7 @@ const services = computed(() => {
                         SENTIMENT RATIO
                     </h3>
                     
-                    <div class="relative w-52 h-52 rounded-full bg-[conic-gradient(at_center,_#0c4b33_0deg_240deg,_#fbbf24_240deg_310deg,_#ef4444_310deg_360deg)] shadow-xl">
+                    <div class="relative w-52 h-52 rounded-full bg-[conic-gradient(at_center,_#0c4b33_0deg_240deg,_#fbbf24_240deg_310deg,_#ef4444_310deg_360deg)] shadow-xl animate-spin-slow">
                         <div class="absolute inset-8 bg-white rounded-full flex flex-col items-center justify-center shadow-inner">
                             <span class="text-4xl font-black text-[#0c4b33]">92%</span>
                             <span class="text-[9px] text-gray-400 font-bold uppercase tracking-tighter">Positive</span>
@@ -134,6 +157,9 @@ const services = computed(() => {
                         <div v-for="(h, i) in [40, 75, 55, 100, 65, 80, 45]" :key="i" 
                              :style="{ height: h + '%' }" 
                              class="w-full bg-[#0c4b33] opacity-80 hover:opacity-100 hover:bg-yellow-500 transition-all duration-300 rounded-t-xl shadow-sm cursor-pointer group relative">
+                             <span class="absolute -top-8 left-1/2 -translate-x-1/2 bg-black text-white text-[9px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                                {{ h * 2 }}
+                             </span>
                         </div>
                     </div>
 
@@ -150,11 +176,11 @@ const services = computed(() => {
                     { label: 'Negative', color: 'bg-red-500 text-white', val: '65', icon: '😟' },
                     { label: 'Neutral', color: 'bg-yellow-500 text-white', val: '75', icon: '😐' }
                 ]" :key="index" 
-                    class="transition-all duration-300 rounded-[25px] p-6 shadow-sm flex flex-col justify-between h-32 hover:scale-105"
+                    class="transition-all duration-300 rounded-[25px] p-6 shadow-sm flex flex-col justify-between h-32 hover:scale-105 cursor-default"
                     :class="card.color">
                     <div class="flex justify-between items-start">
                         <div class="text-[9px] opacity-80 uppercase font-black tracking-wider leading-tight">{{ card.label }}</div>
-                        <span class="text-sm">{{ card.icon }}</span>
+                        <span class="text-sm grayscale opacity-50">{{ card.icon }}</span>
                     </div>
                     <div class="text-3xl font-black">{{ card.val }}</div>
                 </div>
@@ -163,17 +189,3 @@ const services = computed(() => {
         </div>
     </DashboardLayout>
 </template>
-
-<style scoped>
-.no-scrollbar::-webkit-scrollbar { display: none; }
-.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
-.animate-fade-in {
-    animation: fadeIn 0.5s ease-out forwards;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateX(-10px); }
-    to { opacity: 1; transform: translateX(0); }
-}
-</style>

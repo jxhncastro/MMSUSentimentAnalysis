@@ -92,4 +92,14 @@ class DashboardController extends Controller
             'recentFeedback'   => $recentFeedback
         ]);
     }
+    public function allFeedback()
+    {
+        // Fetch data with Pagination (15 per page) to handle 8,000 rows smoothly
+        $feedback = \App\Models\Feedback::orderBy('created_at', 'desc')
+            ->paginate(15);
+
+        return \Inertia\Inertia::render('FeedbackList', [
+            'feedback' => $feedback
+        ]);
+    }
 }

@@ -52,3 +52,6 @@ Route::get('/check-limit', function () {
 Route::get('/debug-upload', function () {
     return view('debug_upload');
 });
+
+Route::get('/all-feedback', [\App\Http\Controllers\DashboardController::class, 'allFeedback'])
+    ->name('feedback.index');

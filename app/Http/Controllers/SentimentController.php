@@ -21,7 +21,11 @@ class SentimentController extends Controller
         // --- STEP 2: HYBRID OVERRIDE LOGIC (Lexicon Guards) ---
         
         // A. Neutral Keywords (Handles "None", "Wala", "Awan")
-        $neutralKeywords = ['none', 'nothing', 'n/a', 'nil', 'wala', 'awan', 'no suggestion', 'ok', 'okay'];
+        $neutralKeywords = ['none', 'nothing', 'n/a', 'nil', 'wala', 'awan', 'no suggestion', 
+        'ok', 'okay', 'fine', 'satisfied', 'neutral', 'n/a', 'na', 'n a', 'no comment', 
+        'no suggestions', 'none.', 'none po', 'nons', 'n/q', 'nne', 'notjing', 'nonia', 'nonw', 
+        'n/aa', 'n aa', 'wala po', 'meron', 'wala naman', 'awan po', 'awanen', 'noise', 'nang', 
+        'nangruna', 'nangrunaan', 'nangrunaen', 'nagruna', 'nagrunaen'];
         
         // B. High-Priority Negative Keywords (Triggers automatic Negative)
         // Added 'rude' and common Ilocano complaints

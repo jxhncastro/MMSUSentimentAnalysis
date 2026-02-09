@@ -15,11 +15,21 @@ const currentUrl = computed(() => page.url);
             <div class="absolute bottom-0 left-0 -mb-10 -ml-10 w-40 h-40 bg-green-600 rounded-full opacity-20 blur-3xl pointer-events-none"></div>
 
             <div class="mb-10 flex flex-col items-center text-center relative z-10">
-                <div class="w-20 h-20 bg-white rounded-full p-1 mb-3 shadow-lg flex items-center justify-center">
-                    <img src="/mmsulogo.png" alt="MMSU Logo" class="h-16 w-16 object-contain" />
+                
+                <div class="w-32 h-32 flex items-center justify-center mb-2 relative group transition-transform duration-500 hover:scale-110">
+                    <img 
+                        src="/mmsulogo.png" 
+                        alt="MMSU Logo" 
+                        class="w-full h-full object-contain drop-shadow-2xl group-hover:rotate-6 transition-transform duration-700"
+                    />
                 </div>
-                <h1 class="text-lg font-bold tracking-wider text-yellow-400">MARIANO MARCOS STATE UNIVERSITY</h1>
-                <p class="text-[10px] text-gray-300 uppercase tracking-widest font-medium mt-1">Sentiment Analysis</p>
+
+                <h1 class="text-sm font-black tracking-widest text-yellow-400 leading-tight mt-2">
+                    MARIANO MARCOS<br>STATE UNIVERSITY
+                </h1>
+                <p class="text-[10px] text-gray-300 uppercase tracking-[0.2em] font-medium mt-3 border-t border-white/20 pt-2 w-full">
+                    Sentiment Dashboard
+                </p>
             </div>
 
             <nav class="space-y-2 flex-1 relative z-10">
@@ -53,6 +63,21 @@ const currentUrl = computed(() => page.url);
                     </svg>
                     Operating Units
                 </Link>
+                <Link 
+                
+                    href="/all-feedback" 
+                    :class="[
+                        'flex items-center px-4 py-3 rounded-xl font-medium mb-1 transition-all duration-200 border border-transparent',
+                        currentUrl.startsWith('/all-feedback') 
+                            ? 'bg-white/10 text-yellow-400 border-yellow-400/30 shadow-sm backdrop-blur-sm' 
+                            : 'text-gray-300 hover:bg-white/5 hover:text-white'
+                    ]"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                    </svg>
+                    Feedback Repository
+                </Link>
 
                 <Link 
                     href="/test-ai"
@@ -72,28 +97,24 @@ const currentUrl = computed(() => page.url);
                 <div class="mt-8 px-2">
                    <Link 
                        href="/add-csv" 
-                       :class="[
-                           'flex items-center justify-center gap-2 px-4 py-3 rounded-xl shadow-lg transition transform hover:-translate-y-0.5 w-full text-sm font-bold',
-                           currentUrl.startsWith('/add-csv')
-                            ? 'bg-white text-[#0c4b33] border-2 border-yellow-400'
-                            : 'bg-yellow-400 text-emerald-900 hover:bg-yellow-300 hover:shadow-yellow-400/50'
-                       ]"
+                       class="flex items-center justify-center gap-2 px-4 py-3 text-emerald-900 bg-yellow-400 rounded-xl shadow-lg hover:bg-yellow-300 hover:shadow-yellow-400/50 w-full text-sm font-bold transition transform hover:-translate-y-0.5"
                    >
                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                        </svg>
                        Add CSV File
                    </Link>
+                   
                 </div>
             </nav>
 
             <div class="mt-auto pt-6 border-t border-white/10 text-center relative z-10">
                  <div class="flex items-center gap-3 px-2">
                      <div class="w-10 h-10 rounded-full bg-white/20 border border-white/30 flex items-center justify-center shrink-0">
-                         <span class="font-bold text-yellow-400">JC</span>
+                         <span class="font-bold text-yellow-400">JD</span>
                      </div>
                      <div class="text-left overflow-hidden">
-                         <h3 class="font-bold text-white text-sm truncate">Jxhn Castro</h3>
+                         <h3 class="font-bold text-white text-sm truncate">Juan Dela Cruz</h3>
                          <p class="text-xs text-gray-400">Administrator</p>
                      </div>
                  </div>
