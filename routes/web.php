@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Controllers\AIController;
 use App\Http\Controllers\DatasetController;
+use App\Http\Controllers\SentimentController;
 
 Route::get('/', function () {
     return Inertia::render('Auth/Login');
@@ -27,5 +28,12 @@ Route::get('/test-ai', function () {
 })->name('test-ai');
 
 // 2. This route HANDLES the AI Logic (The missing piece!)
-Route::post('/ai/analyze', [AIController::class, 'analyze'])->name('ai.analyze');
+Route::post('/ai/analyze', [SentimentController::class, 'analyze']);
 Route::post('/dataset/upload', [DatasetController::class, 'upload'])->name('dataset.upload');
+Route::post('/analyze-sentiment', [SentimentController::class, 'analyzeFeedback']);
+Route::get('/api/analysis-status', function() {
+    return response()->json(
+        \App\Models\AnalysisBatch::where('status', 'processing')->latest()->first()
+    );
+});
+Route::get('/api/analysis-status', [App\Http\Controllers\DatasetController::class, 'getStatus']);

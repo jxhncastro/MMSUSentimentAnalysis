@@ -4,21 +4,18 @@ import axios from 'axios';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 
 const comment = ref('');
-const aspect = ref('General');
+const aspect = ref('General Feedback');
 const result = ref(null);
 const loading = ref(false);
 
-// Dynamically mapping the units from your project data
+// Match these with your Thesis Aspect Categories
 const operatingUnits = [
-    'General',
-    'Accounting Office',
-    'Administrative Service Division',
-    'Alumni Relations Office',
-    'Auxillary Directorate',
-    'Cash Management',
-    'Registrar',
-    'Library Services',
-    'Medical/Dental Clinic'
+    'General Feedback',
+    'customer service',
+    'processing time',
+    'facilities',
+    'process and requirements',
+    'online system'
 ];
 
 const analyzeSentiment = async () => {
@@ -28,13 +25,17 @@ const analyzeSentiment = async () => {
     result.value = null;
 
     try {
+        // This calls your Laravel Proxy route (/ai/analyze) 
+        // which then talks to your Google Colab/Ngrok
         const response = await axios.post('/ai/analyze', {
-            comment: comment.value,
+            text: comment.value, 
             aspect: aspect.value
         });
+        
         result.value = response.data;
     } catch (error) {
-        alert("Error connecting to AI. Make sure your Google Colab cell is running and the Ngrok URL is updated!");
+        console.error("Connection Error:", error);
+        alert("Could not connect to the Sentiment Engine. Please ensure the Laravel .env has the correct AI_MODEL_URL and Colab is running.");
     } finally {
         loading.value = false;
     }
@@ -43,62 +44,82 @@ const analyzeSentiment = async () => {
 
 <template>
     <DashboardLayout>
-        <div class="p-6 max-w-3xl mx-auto">
-            <header class="mb-6">
-                <h2 class="text-3xl font-extrabold text-[#0c4b33]">🤖 Live AI Sentiment Tester</h2>
-                <p class="text-gray-500">Test how the BERT model classifies stakeholder feedback in real-time.</p>
+        <div class="p-6 max-w-4xl mx-auto">
+            <header class="mb-8">
+                <div class="flex items-center gap-3 mb-2">
+                    <span class="bg-[#0c4b33] text-white px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">Research Tool</span>
+                </div>
+                <h2 class="text-4xl font-black text-[#0c4b33] tracking-tight">🤖 MMSU Sentiment Tester</h2>
+                <p class="text-gray-500 mt-2">Testing the <strong>XLM-RoBERTa v2</strong> model on stakeholder feedback (English, Tagalog, Ilocano).</p>
             </header>
             
-            <div class="bg-white p-8 rounded-2xl shadow-xl border border-gray-100 relative overflow-hidden">
-                <div class="absolute top-0 right-0 w-2 h-full bg-yellow-400"></div>
+            <div class="bg-white p-8 rounded-3xl shadow-2xl border border-gray-100 relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-yellow-400 via-[#0c4b33] to-yellow-400"></div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div class="grid grid-cols-1 gap-6 mb-6">
                     <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Select Operating Unit (Aspect)</label>
-                        <select v-model="aspect" class="w-full border-gray-300 rounded-xl shadow-sm focus:ring-[#0c4b33] focus:border-[#0c4b33]">
+                        <label class="block text-sm font-bold text-gray-700 mb-2 uppercase tracking-wide">Target Aspect Category</label>
+                        <select v-model="aspect" class="w-full border-gray-200 rounded-xl shadow-sm focus:ring-[#0c4b33] focus:border-[#0c4b33] py-3">
                             <option v-for="unit in operatingUnits" :key="unit" :value="unit">
-                                {{ unit }}
+                                {{ unit.toUpperCase() }}
                             </option>
                         </select>
                     </div>
                 </div>
 
                 <div class="mb-6">
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Stakeholder Feedback / Comment</label>
+                    <label class="block text-sm font-bold text-gray-700 mb-2 uppercase tracking-wide">Stakeholder Feedback Input</label>
                     <textarea 
                         v-model="comment" 
-                        rows="5" 
-                        class="w-full border-gray-300 rounded-xl shadow-sm focus:ring-[#0c4b33] focus:border-[#0c4b33] p-4" 
-                        placeholder="Type the feedback here (Tagalog, English, or Ilocano)..."
+                        rows="4" 
+                        class="w-full border-gray-200 rounded-2xl shadow-sm focus:ring-[#0c4b33] focus:border-[#0c4b33] p-5 text-lg" 
+                        placeholder="e.g., 'Madi unay ti service ditoy registrar, nabuntog!' or 'Very accommodating staff...'"
                     ></textarea>
                 </div>
 
                 <button 
                     @click="analyzeSentiment" 
                     :disabled="loading || !comment"
-                    class="w-full py-4 rounded-xl font-bold text-lg transition-all duration-200 shadow-lg flex items-center justify-center gap-3"
-                    :class="loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#0c4b33] hover:bg-[#083524] text-white'"
+                    class="w-full py-5 rounded-2xl font-black text-xl transition-all duration-300 shadow-xl flex items-center justify-center gap-4 group"
+                    :class="loading ? 'bg-gray-300 cursor-not-allowed text-gray-500' : 'bg-[#0c4b33] hover:bg-[#083524] text-white active:scale-95'"
                 >
-                    <span v-if="loading" class="animate-spin">🌀</span>
-                    <span>{{ loading ? 'AI is analyzing text...' : 'Run Sentiment Analysis' }}</span>
+                    <span v-if="loading" class="animate-spin text-2xl">⏳</span>
+                    <span v-else class="group-hover:scale-110 transition-transform">🚀</span>
+                    <span>{{ loading ? 'AI IS THINKING...' : 'ANALYZE SENTIMENT' }}</span>
                 </button>
 
-                <transition name="fade">
-                    <div v-if="result" class="mt-8 p-6 rounded-2xl border-2 shadow-inner"
+                <transition name="slide-up">
+                    <div v-if="result" class="mt-10 p-8 rounded-3xl border-2 relative"
                          :class="{
-                             'bg-green-50 border-green-200 text-green-800': result.sentiment === 'Positive',
-                             'bg-red-50 border-red-200 text-red-800': result.sentiment === 'Negative',
-                             'bg-blue-50 border-blue-200 text-blue-800': result.sentiment === 'Neutral'
+                             'bg-emerald-50 border-emerald-200 text-emerald-900': result.sentiment === 'Positive',
+                             'bg-rose-50 border-rose-200 text-rose-900': result.sentiment === 'Negative',
+                             'bg-sky-50 border-sky-200 text-sky-900': result.sentiment === 'Neutral'
                          }">
-                        <div class="flex justify-between items-center">
-                            <div>
-                                <p class="text-xs uppercase tracking-widest font-bold opacity-60 mb-1">Classification Result</p>
-                                <h3 class="text-3xl font-black mb-1">{{ result.sentiment }}</h3>
-                                <p class="text-sm">
-                                    The model is <strong>{{ result.confidence }}%</strong> confident in this result.
-                                </p>
+                        
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="px-3 py-1 bg-white/60 rounded-lg text-[10px] font-black uppercase border border-current/10">
+                                        ENGINE: {{ result.method }}
+                                    </span>
+                                </div>
+                                
+                                <h3 class="text-5xl font-black mb-4 tracking-tighter">{{ result.sentiment }}</h3>
+                                
+                                <div class="max-w-xs">
+                                    <div class="flex justify-between text-xs font-black mb-2 uppercase opacity-70">
+                                        <span>AI Confidence Score</span>
+                                        <span>{{ result.confidence }}%</span>
+                                    </div>
+                                    <div class="w-full bg-black/5 rounded-full h-3 p-0.5">
+                                        <div class="h-2 rounded-full transition-all duration-1000 ease-out" 
+                                             :class="result.sentiment === 'Positive' ? 'bg-emerald-500' : (result.sentiment === 'Negative' ? 'bg-rose-500' : 'bg-sky-500')"
+                                             :style="{ width: result.confidence + '%' }"></div>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="text-5xl">
+                            
+                            <div class="text-7xl animate-bounce-slow">
                                 <span v-if="result.sentiment === 'Positive'">😊</span>
                                 <span v-else-if="result.sentiment === 'Negative'">😟</span>
                                 <span v-else>😐</span>
@@ -108,22 +129,42 @@ const analyzeSentiment = async () => {
                 </transition>
             </div>
 
-            <div class="mt-6 bg-yellow-50 border border-yellow-200 p-4 rounded-xl flex gap-3">
-                <span class="text-yellow-600 font-bold">💡 Tip:</span>
-                <p class="text-sm text-yellow-800 italic">
-                    This test uses the **XLM-RoBERTa** model optimized for the MMSU dashboard. It can process code-switched Tagalog-English feedback typical of Filipino stakeholders.
-                </p>
+            <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-gray-50 border border-gray-200 p-5 rounded-2xl shadow-sm">
+                    <h4 class="font-bold text-[#0c4b33] flex items-center gap-2">
+                        <span>🔍</span> Contextual Analysis
+                    </h4>
+                    <p class="text-xs text-gray-600 mt-1">Model analyzes sentiment based on the <strong>{{ aspect }}</strong> context to improve domain accuracy.</p>
+                </div>
+                <div class="bg-gray-50 border border-gray-200 p-5 rounded-2xl shadow-sm">
+                    <h4 class="font-bold text-[#0c4b33] flex items-center gap-2">
+                        <span>🇵🇭</span> Multilingual Support
+                    </h4>
+                    <p class="text-xs text-gray-600 mt-1">Supports Ilocano (Haan/Madi), Tagalog, and English code-switching.</p>
+                </div>
             </div>
         </div>
     </DashboardLayout>
 </template>
 
 <style scoped>
-.fade-enter-active, .fade-leave-active {
-  transition: opacity 0.5s ease, transform 0.5s ease;
+.slide-up-enter-active, .slide-up-leave-active {
+  transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
-.fade-enter-from, .fade-leave-to {
+.slide-up-enter-from {
   opacity: 0;
-  transform: translateY(10px);
+  transform: translateY(30px);
+}
+.slide-up-leave-to {
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+@keyframes bounce-slow {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+.animate-bounce-slow {
+    animation: bounce-slow 3s infinite ease-in-out;
 }
 </style>

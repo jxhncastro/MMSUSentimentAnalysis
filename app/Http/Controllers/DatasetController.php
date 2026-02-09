@@ -3,58 +3,65 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\Feedback; // Ensure you have this model
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
+use App\Jobs\ProcessSentimentDataset;
+use App\Models\AnalysisBatch;
+use Illuminate\Support\Facades\Storage;
 
 class DatasetController extends Controller
 {
     public function upload(Request $request)
     {
-        // 1. Validate the incoming request
+        // 1. Validate the file (Increased max size for large datasets)
         $request->validate([
-            'file' => 'required|mimes:csv,txt|max:10240', // Max 10MB
+            'file' => 'required|mimes:csv,txt|max:30720' // 30MB limit
         ]);
 
-        $file = $request->file('file');
-        $handle = fopen($file->getRealPath(), 'r');
-        
-        // Skip header row if your CSV has one
-        $header = fgetcsv($handle); 
+        // 2. Store the file temporarily
+        $fileName = time() . '_' . $request->file('file')->getClientOriginalName();
+        $path = $request->file('file')->storeAs('temp_datasets', $fileName);
+        $fullPath = storage_path('app/' . $path);
 
-        $processedData = [];
-
-        // 2. Loop through the CSV rows
-        while (($row = fgetcsv($handle)) !== FALSE) {
-            // Adjust index [0] based on which column contains the feedback text
-            $feedbackText = $row[0]; 
-
-            // 3. Call your AI Sentiment API (BERT/RoBERTa)
-            // Replace the URL with your actual Colab or Local API endpoint
-            try {
-                $response = Http::post('https://tetragonal-tressie-unplundered.ngrok-free.dev/predict', [
-                    'text' => $feedbackText
-                ]);
-
-                $sentiment = $response->json('sentiment'); // e.g., 'positive', 'negative'
-                $score = $response->json('confidence');
-
-                // 4. Save to Database
-                Feedback::create([
-                    'content' => $feedbackText,
-                    'sentiment' => $sentiment,
-                    'confidence_score' => $score,
-                    'office' => $row[1] ?? 'General', // Example: second column is the office
-                ]);
-
-            } catch (\Exception $e) {
-                Log::error("AI Model Error: " . $e->getMessage());
-                // Fallback or skip if API fails
+        // 3. Count Total Rows (Excluding header)
+        // This is necessary for the progress bar percentage
+        $lineCount = 0;
+        if (($handle = fopen($fullPath, "r")) !== FALSE) {
+            while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
+                $lineCount++;
             }
+            fclose($handle);
         }
+        $totalRows = max(0, $lineCount - 1); // Subtract 1 for the header row
 
-        fclose($handle);
+        // 4. Create a Batch Tracking Record
+        // This is what the Vue frontend polls via /api/analysis-status
+        $batch = AnalysisBatch::create([
+            'filename' => $request->file('file')->getClientOriginalName(),
+            'total_rows' => $totalRows,
+            'processed_rows' => 0,
+            'status' => 'processing',
+        ]);
 
-        return back()->with('message', 'Dataset processed and saved successfully!');
+        // 5. Dispatch the Background Job with the Batch ID
+        ProcessSentimentDataset::dispatch($fullPath, $batch->id);
+
+        // 6. Return success immediately
+        return redirect()->back()->with([
+            'success' => "File uploaded! $totalRows rows are being processed.",
+            'batch_id' => $batch->id
+        ]);
+    }
+
+    /**
+     * API for Vue polling
+     */
+    public function getStatus()
+    {
+        // Get the latest active batch
+        $batch = AnalysisBatch::where('status', 'processing')
+                    ->orWhere('updated_at', '>', now()->subMinutes(5))
+                    ->latest()
+                    ->first();
+
+        return response()->json($batch);
     }
 }
