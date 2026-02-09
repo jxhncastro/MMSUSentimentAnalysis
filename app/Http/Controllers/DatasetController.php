@@ -5,24 +5,42 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Jobs\ProcessSentimentDataset;
 use App\Models\AnalysisBatch;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage; 
 
 class DatasetController extends Controller
 {
     public function upload(Request $request)
     {
-        // 1. Validate the file (Increased max size for large datasets)
+        Log::info("🔴 STEP 1: Upload Started");
+
+        // 1. Validate
         $request->validate([
-            'file' => 'required|mimes:csv,txt|max:30720' // 30MB limit
+            'file' => 'required|file|max:100000'
         ]);
 
-        // 2. Store the file temporarily
-        $fileName = time() . '_' . $request->file('file')->getClientOriginalName();
-        $path = $request->file('file')->storeAs('temp_datasets', $fileName);
-        $fullPath = storage_path('app/' . $path);
+        // 2. DEFINE THE PATH
+        // We force a simple name 'data.csv' to avoid weird character issues
+        $folder = 'temp_datasets';
+        $filename = 'data.csv'; 
 
-        // 3. Count Total Rows (Excluding header)
-        // This is necessary for the progress bar percentage
+        // 3. SAVE THE FILE (Overwrite if exists)
+        // storeAs returns the relative path: "temp_datasets/data.csv"
+        $path = $request->file('file')->storeAs($folder, $filename, 'local'); 
+        
+        // 4. GET THE REAL ABSOLUTE PATH
+        // This asks Laravel: "Where on the hard drive is this file?"
+        $fullPath = Storage::disk('local')->path($path);
+
+        Log::info("🟢 STEP 2: File supposedly saved at: " . $fullPath);
+
+        // 5. CRITICAL CHECK: Does it actually exist?
+        if (!file_exists($fullPath)) {
+            Log::error("❌ ERROR: File missing! Check permissions for folder: storage/app/" . $folder);
+            return redirect()->back()->with('error', 'Server Error: File could not be saved to disk.');
+        }
+
+        // 6. Count Rows
         $lineCount = 0;
         if (($handle = fopen($fullPath, "r")) !== FALSE) {
             while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
@@ -30,38 +48,28 @@ class DatasetController extends Controller
             }
             fclose($handle);
         }
-        $totalRows = max(0, $lineCount - 1); // Subtract 1 for the header row
+        $totalRows = max(0, $lineCount - 1);
 
-        // 4. Create a Batch Tracking Record
-        // This is what the Vue frontend polls via /api/analysis-status
+        // 7. Create Batch
         $batch = AnalysisBatch::create([
-            'filename' => $request->file('file')->getClientOriginalName(),
+            'filename' => $request->file('file')->getClientOriginalName(), // Keep original name for display
             'total_rows' => $totalRows,
             'processed_rows' => 0,
             'status' => 'processing',
         ]);
 
-        // 5. Dispatch the Background Job with the Batch ID
+        // 8. Dispatch Job
+        Log::info("🟠 STEP 3: Dispatching Job...");
         ProcessSentimentDataset::dispatch($fullPath, $batch->id);
-
-        // 6. Return success immediately
+        
         return redirect()->back()->with([
-            'success' => "File uploaded! $totalRows rows are being processed.",
+            'success' => "File uploaded successfully! Processing $totalRows rows...",
             'batch_id' => $batch->id
         ]);
     }
 
-    /**
-     * API for Vue polling
-     */
     public function getStatus()
     {
-        // Get the latest active batch
-        $batch = AnalysisBatch::where('status', 'processing')
-                    ->orWhere('updated_at', '>', now()->subMinutes(5))
-                    ->latest()
-                    ->first();
-
-        return response()->json($batch);
+        return response()->json(AnalysisBatch::latest()->first());
     }
 }

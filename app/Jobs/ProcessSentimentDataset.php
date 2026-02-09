@@ -2,25 +2,35 @@
 
 namespace App\Jobs;
 
-use App\Models\Feedback;
 use App\Models\AnalysisBatch;
+use App\Models\Feedback;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use League\Csv\Reader;
 
 class ProcessSentimentDataset implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public $timeout = 0; // Infinite timeout prevents the job from dying during 8k processing
+    public $timeout = 3600; // 1 Hour for large datasets
+
     protected $filePath;
     protected $batchId;
 
-    public function __construct($filePath, $batchId = null)
+    // Translated from your Python Script
+    protected $garbagePhrases = [
+        'none', 'n a', 'na', 'no', 'nothing', 'no comment', 'no suggestions',
+        'nil', 'n/a', 'none.', 'none po', 'nons', 'n/q', 'nne', 'notjing', 
+        'nonia', 'nonw', 'n/aa', 'n aa', 'wala', 'wala po', 'meron', 
+        'wala naman', 'awan', 'awan po', 'awanen', 'noise'
+    ];
+
+    public function __construct($filePath, $batchId)
     {
         $this->filePath = $filePath;
         $this->batchId = $batchId;
@@ -28,90 +38,138 @@ class ProcessSentimentDataset implements ShouldQueue
 
     public function handle()
     {
-        // 1. Read the CSV File
-        if (!file_exists($this->filePath)) {
-            \Log::error("CSV File not found: " . $this->filePath);
-            return;
-        }
-
-        $csv = Reader::createFromPath($this->filePath, 'r');
-        $csv->setHeaderOffset(0); // Assumes first row is header
-        
-        // Convert to array so we can chunk it
-        $records = iterator_to_array($csv->getRecords());
         $batch = AnalysisBatch::find($this->batchId);
+        Log::info("🚀 PROCESSING BATCH #{$this->batchId}");
 
-        // 2. Process in Chunks of 50 (Batch Optimization)
-        // Sending 50 rows at once is 10x faster than 1-by-1
-        $chunks = array_chunk($records, 50);
-
-        foreach ($chunks as $chunk) {
-            $payload = [];
-            
-            // Prepare the payload for the Python API
-            foreach ($chunk as $record) {
-                $payload[] = [
-                    'text' => $record['feedback_text'] ?? $record['comment'] ?? '',
-                    'aspect' => $record['aspect'] ?? 'General'
-                ];
+        try {
+            if (!file_exists($this->filePath)) {
+                Log::error("❌ File not found: {$this->filePath}");
+                if ($batch) $batch->update(['status' => 'failed']);
+                return;
             }
 
-            try {
-                // 3. Call the Python Batch Endpoint
-                // We use a longer timeout (120s) to give the AI time to think about 50 sentences
-                $response = Http::withHeaders(['ngrok-skip-browser-warning' => 'true'])
-                    ->timeout(120) 
-                    ->post(env('AI_MODEL_URL') . '/predict_batch', [
-                        'items' => $payload
-                    ]);
+            // 1. READ CSV & FIX BOM (Invisible Characters)
+            $csv = Reader::createFromPath($this->filePath, 'r');
+            $csv->setHeaderOffset(0); 
+            if (method_exists($csv, 'skipInputBOM')) {
+                $csv->skipInputBOM(); 
+            }
 
-                if ($response->successful()) {
-                    $results = $response->json();
-                    
-                    $dataToInsert = [];
-                    $timestamp = now();
+            $records = $csv->getRecords();
+            $batchData = [];
+            $processedCount = 0;
+            $skippedCount = 0;
 
-                    // Map the AI results to your Database Columns
-                    foreach ($results as $index => $res) {
-                        // Use the original text from the chunk to ensure accuracy
-                        $originalText = $chunk[$index]['feedback_text'] ?? $chunk[$index]['comment'] ?? '';
+            foreach ($records as $index => $record) {
+                // 2. DYNAMIC COLUMN MAPPING (Finds "Suggestion" and "Office")
+                $row = array_change_key_case($record, CASE_LOWER);
+                $rawText = null;
+                $unit = 'General';
 
-                        $dataToInsert[] = [
-                            'raw_text'   => $originalText,
-                            'aspect'     => $res['aspect_used'],
-                            'sentiment'  => $res['sentiment'],
-                            'confidence' => $res['confidence'],
-                            'method'     => $res['method'], // e.g., 'heuristic_negative_rule' or 'transformer_v2'
-                            'created_at' => $timestamp,
-                            'updated_at' => $timestamp,
-                        ];
+                foreach ($row as $key => $value) {
+                    if (str_contains($key, 'suggestion') || str_contains($key, 'improve') || str_contains($key, 'feedback')) {
+                        $rawText = $value;
                     }
-
-                    // 4. Bulk Insert (Much lighter on the database)
-                    Feedback::insert($dataToInsert);
-
-                    // 5. Update Progress Bar
-                    if ($batch) {
-                        $batch->increment('processed_rows', count($chunk));
+                    if (str_contains($key, 'office') || str_contains($key, 'unit')) {
+                        $unit = $value;
                     }
-                } else {
-                    \Log::error("Batch AI Error: " . $response->body());
                 }
 
-            } catch (\Exception $e) {
-                \Log::error("Batch Processing Exception: " . $e->getMessage());
-                // We continue to the next chunk even if one fails
-                continue; 
+                // 3. APPLY "STRICT CLEANING" (PHP Version of your Python function)
+                $cleanText = $this->cleanText($rawText);
+
+                // 4. GARBAGE FILTER
+                // If text is empty, too short, or in the garbage list -> SKIP IT
+                if (empty($cleanText) || strlen($cleanText) < 3 || in_array($cleanText, $this->garbagePhrases)) {
+                    $skippedCount++;
+                    continue; 
+                }
+
+                // --- AI ANALYSIS ---
+                $sentiment = 'Neutral';
+                $confidence = 0.0;
+                $method = 'Heuristic';
+
+                try {
+                    $response = Http::timeout(5)->post(env('AI_MODEL_URL') . '/predict', [
+                        'text' => $cleanText,
+                        'aspect' => $unit
+                    ]);
+
+                    if ($response->successful()) {
+                        $pred = $response->json();
+                        $sentiment = ucfirst($pred['sentiment']);
+                        $confidence = ($pred['confidence_score'] ?? 0) * 100;
+                        $method = 'AI Model';
+                    }
+                } catch (\Exception $e) {
+                    // Fail silently, save as Neutral so we don't lose data
+                    $method = 'Fallback';
+                }
+
+                $batchData[] = [
+                    'operating_unit' => $unit,
+                    'feedback_text'  => mb_convert_encoding($cleanText, 'UTF-8', 'UTF-8'),
+                    'sentiment'      => $sentiment,
+                    'confidence'     => $confidence,
+                    'method'         => $method,
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                ];
+
+                // BATCH INSERT (Every 50 rows)
+                if (count($batchData) >= 50) {
+                    Feedback::insert($batchData);
+                    $processedCount += count($batchData);
+                    if ($batch) $batch->update(['processed_rows' => $processedCount]);
+                    $batchData = [];
+                    Log::info("✅ Saved {$processedCount} rows...");
+                }
             }
-        }
 
-        // 6. Finish Up
-        if ($batch) {
-            $batch->update(['status' => 'completed']);
-        }
+            // Insert Remaining
+            if (!empty($batchData)) {
+                Feedback::insert($batchData);
+                $processedCount += count($batchData);
+            }
 
-        if (file_exists($this->filePath)) {
-            unlink($this->filePath);
+            if ($batch) {
+                $batch->update([
+                    'status' => 'completed', 
+                    'processed_rows' => $processedCount
+                ]);
+            }
+            Log::info("🏁 DONE. Processed: {$processedCount}, Skipped Garbage: {$skippedCount}");
+
+        } catch (\Exception $e) {
+            Log::error("❌ JOB FAILED: " . $e->getMessage());
+            if ($batch) $batch->update(['status' => 'failed']);
         }
+    }
+
+    /**
+     * PHP version of your 'strict_clean' Python function
+     */
+    private function cleanText($text)
+    {
+        if (empty($text)) return "";
+
+        // Convert to lowercase
+        $text = strtolower($text);
+
+        // Remove emojis (Basic Regex)
+        $text = preg_replace('/[\x{1F600}-\x{1F64F}]/u', '', $text);
+
+        // Expand simple contractions
+        $text = preg_replace('/\b(r)u\b/', 'are you', $text);
+        $text = preg_replace('/\b(u)\b/', 'you', $text);
+
+        // Remove special chars but keep punctuation !, ?, . (Like your script)
+        $text = preg_replace("/[^a-z0-9\s\!\?\.]/i", " ", $text);
+
+        // Collapse repeating chars (slowww -> slow)
+        $text = preg_replace('/(.)\1{2,}/', '$1', $text);
+
+        return trim(preg_replace('/\s+/', ' ', $text));
     }
 }

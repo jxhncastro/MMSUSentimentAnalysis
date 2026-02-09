@@ -146,16 +146,20 @@ onUnmounted(() => clearInterval(pollingInterval));
                     <div v-if="batchProgress" class="mb-8 bg-gray-50 p-4 rounded-2xl border border-gray-100">
                         <div class="flex justify-between text-[10px] font-bold text-[#0c4b33] mb-2 uppercase tracking-widest">
                             <span>Progress</span>
-                            <span>{{ Math.round((batchProgress.processed_rows / batchProgress.total_rows) * 100) }}%</span>
+                            <span>
+                                {{ (batchProgress.total_rows && batchProgress.total_rows > 0) 
+                                    ? Math.round((batchProgress.processed_rows / batchProgress.total_rows) * 100) 
+                                    : 0 }}%
+                            </span>
                         </div>
                         <div class="w-full bg-gray-200 h-3 rounded-full overflow-hidden">
                             <div 
                                 class="bg-[#0c4b33] h-full transition-all duration-500"
-                                :style="{ width: (batchProgress.processed_rows / batchProgress.total_rows * 100) + '%' }"
+                                :style="{ width: ((batchProgress.total_rows > 0 ? batchProgress.processed_rows / batchProgress.total_rows : 0) * 100) + '%' }"
                             ></div>
                         </div>
                         <p class="text-[9px] text-center mt-2 text-gray-400 font-mono italic">
-                            {{ batchProgress.processed_rows }} / {{ batchProgress.total_rows }} records processed
+                            {{ batchProgress.processed_rows || 0 }} / {{ batchProgress.total_rows || 'Counting...' }} records processed
                         </p>
                     </div>
 

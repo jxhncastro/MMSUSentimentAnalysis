@@ -16,11 +16,13 @@
         "@inertiajs/vue3": "^2.3.13",
         "@tailwindcss/vite": "^4.1.18",
         "@vitejs/plugin-vue": "^6.0.4",
+        "apexcharts": "^5.3.6",
         "chart.js": "^4.5.1",
         "php": "^1.1.0",
         "tailwindcss": "^4.1.18",
         "vue": "^3.5.27",
         "vue-chartjs": "^5.3.3",
+        "vue3-apexcharts": "^1.10.0",
         "ziggy-js": "^2.6.0"
     }
 }

@@ -25,17 +25,24 @@ const analyzeSentiment = async () => {
     result.value = null;
 
     try {
-        // This calls your Laravel Proxy route (/ai/analyze) 
-        // which then talks to your Google Colab/Ngrok
-        const response = await axios.post('/ai/analyze', {
+        // FIX 1: Point to the correct API route (prefixed with /api)
+        const response = await axios.post('/api/ai/analyze', {
             text: comment.value, 
             aspect: aspect.value
         });
         
-        result.value = response.data;
+        // FIX 2: Format the raw Python response for the UI
+        // Python returns 'confidence_score' (0.98), UI needs 'confidence' (98)
+        const raw = response.data;
+        result.value = {
+            sentiment: raw.sentiment.charAt(0).toUpperCase() + raw.sentiment.slice(1), // Ensure Capitalized
+            confidence: raw.confidence_score ? Math.round(raw.confidence_score * 100) : 0,
+            method: raw.method || 'XLM-RoBERTa v2' // Fallback if API doesn't send method name
+        };
+
     } catch (error) {
         console.error("Connection Error:", error);
-        alert("Could not connect to the Sentiment Engine. Please ensure the Laravel .env has the correct AI_MODEL_URL and Colab is running.");
+        alert("Could not connect to the Sentiment Engine.\n\n1. Check if the Colab Script is running.\n2. Check if AI_MODEL_URL in .env is correct.");
     } finally {
         loading.value = false;
     }
