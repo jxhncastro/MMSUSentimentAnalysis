@@ -25,8 +25,8 @@ const analyzeSentiment = async () => {
     result.value = null;
 
     try {
-        // FIX 1: Point to the correct API route (prefixed with /api)
-        const response = await axios.post('/api/ai/analyze', {
+        // 👇 CHANGE THIS LINE: Remove '/api' to match your web.php route
+        const response = await axios.post('/ai/analyze', {
             text: comment.value, 
             aspect: aspect.value
         });
@@ -36,7 +36,7 @@ const analyzeSentiment = async () => {
         const raw = response.data;
         result.value = {
             sentiment: raw.sentiment.charAt(0).toUpperCase() + raw.sentiment.slice(1), // Ensure Capitalized
-            confidence: raw.confidence_score ? Math.round(raw.confidence_score * 100) : 0,
+            confidence: raw.confidence ? Math.round(raw.confidence) : 0,
             method: raw.method || 'XLM-RoBERTa v2' // Fallback if API doesn't send method name
         };
 

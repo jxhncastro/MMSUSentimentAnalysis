@@ -63,7 +63,7 @@ const submitFile = () => {
     form.post(route('dataset.upload'), {
         forceFormData: true,
         onStart: () => {
-            addLog(">> [SYS] Transferring 8,000+ rows to server...");
+            addLog(">> [SYS] Transferring " + batchProgress.value?.total_rows + " rows to server...");
         },
         onSuccess: () => {
             addLog(">> [SUCCESS] File received by server.");
@@ -122,7 +122,7 @@ onUnmounted(() => clearInterval(pollingInterval));
                     
                     <h3 class="text-center text-xl font-black mb-10 uppercase tracking-widest transition-colors duration-500"
                         :class="batchProgress?.status === 'completed' ? 'text-green-600' : 'text-[#0c4b33] animate-pulse'">
-                        {{ batchProgress?.status === 'completed' ? '🎉 Analysis Complete!' : '🤖 BERT is Analyzing 8k+ Rows...' }}
+                        {{ batchProgress?.status === 'completed' ? '🎉 Analysis Complete!' : `🤖 BERT is Analyzing ${batchProgress?.total_rows || 0} Rows...` }}
                     </h3>
 
                     <div class="relative flex justify-between items-start mb-12">

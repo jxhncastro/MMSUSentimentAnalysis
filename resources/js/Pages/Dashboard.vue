@@ -1,9 +1,8 @@
 <script setup>
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
-import { Head } from '@inertiajs/vue3';
+import { Head, useForm } from '@inertiajs/vue3'; // <--- We use 'useForm' for stability
 
 // Receive Real Data from Laravel Controller
-// We add 'default' values here to prevent the "White Screen" crash if data is loading
 const props = defineProps({
     stats: {
         type: Object,
@@ -22,12 +21,44 @@ const props = defineProps({
         default: () => []
     }
 });
+
+// --- CLEAR DATA LOGIC (Stable Form Method) ---
+const form = useForm({}); // Create an empty form object
+
+const submitClear = () => {
+    if (confirm('⚠️ DANGER ZONE: ARE YOU SURE?\n\nThis will permanently delete ALL feedback data from the database.\n\nThis action cannot be undone.')) {
+        // Explicitly targets the /clear-data route
+        form.post('/clear-data', {
+            onSuccess: () => alert('✅ System Cleaned: All data has been removed.'),
+            onError: () => alert('❌ Error: Could not clear data.')
+        });
+    }
+};
 </script>
 
 <template>
     <Head title="MMSU Sentiment Dashboard" />
 
     <DashboardLayout>
+        
+        <div class="flex justify-between items-center mb-8">
+            <div>
+                <h2 class="text-2xl font-black text-[#0c4b33] uppercase tracking-wide">Executive Overview</h2>
+                <p class="text-sm text-gray-500 font-bold">Real-time Sentiment Analytics</p>
+            </div>
+            
+            <button 
+                @click="submitClear"
+                type="button" 
+                :disabled="form.processing"
+                class="bg-white border border-red-200 text-red-500 hover:bg-red-500 hover:text-white px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition flex items-center gap-2 shadow-sm hover:shadow-md cursor-pointer disabled:opacity-50"
+            >
+                <span class="text-lg" v-if="!form.processing">🗑️</span>
+                <span class="text-lg animate-spin" v-else>⏳</span>
+                {{ form.processing ? 'Clearing...' : 'Clear All Data' }}
+            </button>
+        </div>
+
         <div class="grid grid-cols-2 md:grid-cols-4 gap-5 mb-8">
             <div v-for="(item, index) in [
                 { label: 'Total Feedback', val: props.stats.total, color: 'bg-white border-gray-100 border text-gray-800' },
@@ -116,9 +147,9 @@ const props = defineProps({
             <div class="px-8 pb-8">
                 <div class="grid grid-cols-12 gap-4 bg-gray-50 text-gray-400 text-[9px] font-black uppercase tracking-widest py-3 px-6 rounded-xl mb-4 border border-gray-100">
                     <div class="col-span-2">Operating Unit</div>
-                    <div class="col-span-6">Feedback Statement</div>
+                    <div class="col-span-5">Feedback Statement</div> 
                     <div class="col-span-2 text-center">Sentiment</div>
-                    <div class="col-span-2 text-right">Model Confidence</div>
+                    <div class="col-span-3 text-right">Detected Triggers</div> 
                 </div>
 
                 <div v-if="props.recentFeedback.length === 0" class="text-center text-gray-400 text-sm py-10 italic">
@@ -128,13 +159,15 @@ const props = defineProps({
                 <div v-else v-for="(row, idx) in props.recentFeedback" :key="idx" 
                 class="grid grid-cols-12 gap-4 py-4 px-6 border-b border-gray-50 hover:bg-gray-50/50 transition items-center group">
                     <div class="col-span-2 text-[10px] font-black text-gray-800 uppercase">{{ row.unit }}</div>
-                    <div class="col-span-6 text-sm text-gray-600 italic group-hover:text-gray-900 transition pr-4 truncate">"{{ row.text }}"</div>
+                    <div class="col-span-5 text-sm text-gray-600 italic group-hover:text-gray-900 transition pr-4 truncate">"{{ row.text }}"</div>
                     <div class="col-span-2 flex justify-center">
                         <span class="px-4 py-1 rounded-full text-[9px] font-black uppercase tracking-tighter" :class="row.color">
                             {{ row.sentiment }}
                         </span>
                     </div>
-                    <div class="col-span-2 text-right font-mono text-[11px] font-bold text-gray-400 group-hover:text-[#0c4b33]">{{ row.conf }}</div>
+                    <div class="col-span-3 text-right font-mono text-[10px] font-bold text-gray-400 group-hover:text-[#0c4b33] uppercase truncate">
+                        {{ row.keywords || row.conf || '---' }}
+                    </div>
                 </div>
             </div>
         </div>
