@@ -9,32 +9,27 @@ use Illuminate\Support\Facades\DB;
 
 class SentimentController extends Controller
 {
-    // --- 1. CLEAR DATA FUNCTION (From previous step) ---
+    // --- 1. CLEAR DATA FUNCTION ---
     public function clearData()
-        {
-            try {
-                // 1. Disable Foreign Key Checks (Prevents crashing if tables are linked)
-                DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+    {
+        try {
+            DB::statement('SET FOREIGN_KEY_CHECKS=0;');
 
-                // 2. Truncate the CORRECT tables (Based on your migration log)
-                // We use 'truncate' to wipe them clean and reset IDs to 1.
-                DB::table('feedback')->truncate();
-                DB::table('sentiment_results')->truncate();
-                DB::table('analysis_batches')->truncate();
+            DB::table('feedback')->truncate();
+            DB::table('sentiment_results')->truncate();
+            DB::table('analysis_batches')->truncate();
 
-                // 3. Re-enable Foreign Key Checks
-                DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+            DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
-                return redirect()->back()->with('success', '✅ All data has been wiped successfully!');
-            } catch (\Exception $e) {
-                return redirect()->back()->with('error', 'Error clearing data: ' . $e->getMessage());
-            }
+            return redirect()->back()->with('success', '✅ All data has been wiped successfully!');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Error clearing data: ' . $e->getMessage());
         }
+    }
 
     // --- 2. MAIN ANALYSIS FUNCTION ---
     public function analyze(Request $request)
     {
-        // A. Validation
         $request->validate([
             'text' => 'required|string',
             'aspect' => 'required|string',
@@ -42,33 +37,27 @@ class SentimentController extends Controller
 
         $text = strtolower(trim($request->text));
 
-        // --- STEP 2: HYBRID OVERRIDE LOGIC (Lexicon Guards) ---
+        // --- STEP 1: HYBRID OVERRIDE LOGIC ---
         
-        // A. Neutral Keywords (Handles "None", "Wala", "Awan")
+        // Strict Neutral List: Only for actual "Empty" responses
         $neutralKeywords = [
             'none', 'nothing', 'n/a', 'nil', 'wala', 'awan', 'no suggestion', 
-            'ok', 'okay', 'fine', 'satisfied', 'neutral', 'na', 'n a', 'no comment', 
-            'no suggestions', 'none.', 'none po', 'nons', 'n/q', 'nne', 'notjing', 'nonia', 'nonw', 
-            'n/aa', 'n aa', 'wala po', 'meron', 'wala naman', 'awan po', 'awanen', 'noise', 'nang', 
-            'nangruna', 'nangrunaan', 'nangrunaen', 'nagruna', 'nagrunaen'
+            'no comment', 'na', 'n a', 'none.', 'wala po', 'awan po'
         ];
         
-        // B. High-Priority Negative Keywords (Triggers automatic Negative)
         $negativeKeywords = [
             'rude', 'bad', 'slow', 'nabuntog', 'madi', 'worst', 'poor', 
-            'bastos', 'attitude', 'terrible', 'disappointing', 'bagal', 'mabagal'
+            'bastos', 'attitude', 'terrible', 'disappointing', 'bagal', 'mabagal', 'pangit'
         ]; 
         
-        // C. Positive "Savers" (Prevents overriding things like "not bad")
         $positiveSavers = [
             'not bad', 'not rude', 'good', 'great', 'best', 'excellent', 
-            'pintas', 'sayaat', 'napintas', 'nice', 'fast', 'mabilis'
+            'pintas', 'sayaat', 'napintas', 'nice', 'fast', 'mabilis', 'satisfied'
         ];
 
-        // CHECK 1: Positive Savers (If found, SKIP Negative Guard)
+        // CHECK 1: Positive Savers
         $hasPositiveSaver = false;
         foreach ($positiveSavers as $word) {
-            // We use regex \b to match WHOLE WORDS only (avoids "bad" matching "badminton")
             if (preg_match('/\b' . preg_quote($word, '/') . '\b/', $text)) {
                 $hasPositiveSaver = true;
                 break;
@@ -76,7 +65,7 @@ class SentimentController extends Controller
         }
 
         if (!$hasPositiveSaver) {
-            // CHECK 2: NEGATIVE GUARD
+            // CHECK 2: NEGATIVE GUARD (Manual override for obvious bad words)
             foreach ($negativeKeywords as $neg) {
                 if (preg_match('/\b' . preg_quote($neg, '/') . '\b/', $text)) {
                     return response()->json([
@@ -88,7 +77,7 @@ class SentimentController extends Controller
                 }
             }
 
-            // CHECK 3: NEUTRAL GUARD (Only for short texts < 50 chars)
+            // CHECK 3: NEUTRAL GUARD (Only for very short text)
             $isNeutral = false;
             foreach ($neutralKeywords as $word) {
                 if (preg_match('/\b' . preg_quote($word, '/') . '\b/', $text)) {
@@ -97,7 +86,8 @@ class SentimentController extends Controller
                 }
             }
 
-            if ($isNeutral && strlen($text) < 50) {
+            // Reduced to 25 chars to prevent capturing actual feedback
+            if ($isNeutral && strlen($text) < 25) { 
                 return response()->json([
                     'sentiment' => 'Neutral',
                     'confidence' => 100.0,
@@ -107,16 +97,12 @@ class SentimentController extends Controller
             }
         }
 
-        // --- STEP 3: CALL GOOGLE COLAB AI ---
+        // --- STEP 2: CALL GOOGLE COLAB AI ---
         try {
-            // Get URL from .env (e.g., AI_MODEL_URL=https://xyz.ngrok-free.app)
-            $url = env('AI_MODEL_URL');
-            
-            // If URL ends with a slash, remove it to prevent double slashes
-            $url = rtrim($url, '/');
+            $url = rtrim(env('AI_MODEL_URL'), '/');
 
             $response = Http::withHeaders([
-                'ngrok-skip-browser-warning' => 'true', // Important for Ngrok free tier
+                'ngrok-skip-browser-warning' => 'true',
                 'Content-Type' => 'application/json',
                 'Accept' => 'application/json',
             ])->timeout(30)->post($url . '/predict', [
@@ -127,28 +113,19 @@ class SentimentController extends Controller
             if ($response->successful()) {
                 $aiData = $response->json();
                 
-                // FINAL ACCURACY CHECK: If AI is unsure (< 60%), default to Neutral
-                if (isset($aiData['confidence']) && $aiData['confidence'] < 60.0) {
-                    $aiData['sentiment'] = 'Neutral';
-                    $aiData['method'] = ($aiData['method'] ?? 'Transformer') . ' (Low Confidence Adjustment)';
-                }
+                // ✅ REMOVED THE 40% THRESHOLD:
+                // We trust the Python "Decisive" logic now.
+                // This prevents Laravel from turning a "lean-positive" result into Neutral.
                 
                 return response()->json($aiData);
             }
 
-            // Log the error if AI fails
             Log::error("AI API Error: " . $response->body());
-            return response()->json([
-                'error' => 'AI Server returned an error.',
-                'details' => $response->body()
-            ], 500);
+            return response()->json(['error' => 'AI Server error'], 500);
 
         } catch (\Exception $e) {
             Log::error("Connection Error: " . $e->getMessage());
-            return response()->json([
-                'error' => 'Could not connect to AI Model.',
-                'suggestion' => 'Check if the Ngrok URL in .env is correct and active.'
-            ], 503);
+            return response()->json(['error' => 'Could not connect to AI'], 503);
         }
     }
 }

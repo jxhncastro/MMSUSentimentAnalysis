@@ -51,12 +51,15 @@ class DatasetController extends Controller
         $totalRows = max(0, $lineCount - 1);
 
         // 7. Create Batch
-        $batch = AnalysisBatch::create([
-            'filename' => $request->file('file')->getClientOriginalName(), // Keep original name for display
-            'total_rows' => $totalRows,
-            'processed_rows' => 0,
-            'status' => 'processing',
-        ]);
+        $batch = AnalysisBatch::updateOrCreate(
+            ['id' => 1], // Always target the first record
+            [
+                'filename' => $request->file('file')->getClientOriginalName(),
+                'total_rows' => $totalRows,
+                'processed_rows' => 0,
+                'status' => 'processing',
+            ]
+        );
 
         // 8. Dispatch Job
         Log::info("🟠 STEP 3: Dispatching Job...");
@@ -70,6 +73,14 @@ class DatasetController extends Controller
 
     public function getStatus()
     {
-        return response()->json(AnalysisBatch::latest()->first());
+        // Get the batch that is currently 'processing'
+        $batch = AnalysisBatch::where('status', 'processing')->latest()->first();
+
+        // If none are processing, just get the most recent completed one
+        if (!$batch) {
+            $batch = AnalysisBatch::latest()->first();
+        }
+
+        return response()->json($batch);
     }
 }

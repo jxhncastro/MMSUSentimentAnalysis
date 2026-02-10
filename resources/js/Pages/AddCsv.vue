@@ -63,7 +63,7 @@ const submitFile = () => {
     form.post(route('dataset.upload'), {
         forceFormData: true,
         onStart: () => {
-            addLog(">> [SYS] Transferring " + batchProgress.value?.total_rows + " rows to server...");
+            addLog(">> [SYS] Transferring " + (batchProgress.value?.total_rows || 0) + " rows to server...");
         },
         onSuccess: () => {
             addLog(">> [SUCCESS] File received by server.");
@@ -109,7 +109,7 @@ onUnmounted(() => clearInterval(pollingInterval));
                     >
                         <div class="w-20 h-20 bg-green-100 text-[#0c4b33] rounded-full flex items-center justify-center mb-6 text-3xl shadow-inner">📄</div>
                         <h3 class="text-2xl font-black text-gray-800 mb-2">Upload Dataset</h3>
-                        <p class="text-gray-400 text-sm mb-8 font-medium italic">Supports 8,000+ rows via Async Queue</p>
+                        <p class="text-gray-400 text-sm mb-8 font-medium italic">Supports thousands of rows via Async Queue</p>
                         
                         <input type="file" accept=".csv" class="hidden" id="fileInput" @change="handleFile">
                         <label for="fileInput" class="bg-[#0c4b33] text-white px-10 py-4 rounded-2xl font-bold hover:bg-black transition shadow-xl cursor-pointer uppercase text-xs tracking-widest">
