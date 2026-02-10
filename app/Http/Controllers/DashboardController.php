@@ -8,9 +8,18 @@ use Inertia\Inertia;
 
 class DashboardController extends Controller
 {
+    /**
+     * Strict list of survey noise to exclude from Top Rankings.
+     */
+    protected $excludedUnits = [
+        'strongly agree', 'agree', 'neither agree nor disagree', 
+        'disagree', 'strongly disagree', 'n/a', 'na', 'none', 
+        'general service', 'unknown', 'select office'
+    ];
+
     public function index()
     {
-        // 1. STATS (Safe)
+        // 1. GLOBAL STATS
         $stats = [
             'total'    => Feedback::count(),
             'positive' => Feedback::where('sentiment', 'Positive')->count(),
@@ -18,21 +27,21 @@ class DashboardController extends Controller
             'neutral'  => Feedback::where('sentiment', 'Neutral')->count(),
         ];
 
-        // 2. TOP PERFORMING (Safe for empty DB)
+        // 2. EXCELLENCE AWARDEES (Top Offices by Positive Count)
+        // We exclude survey ratings here so the actual Office Names can appear.
         $topPerformers = Feedback::select('operating_unit')
-            ->selectRaw('count(*) as total')
-            ->selectRaw("AVG(CASE WHEN sentiment = 'Positive' THEN 100 ELSE 0 END) as satisfaction_score")
+            ->whereNotIn(DB::raw('LOWER(TRIM(operating_unit))'), $this->excludedUnits)
+            ->selectRaw("COUNT(CASE WHEN sentiment = 'Positive' THEN 1 END) as positive_count")
             ->groupBy('operating_unit')
-            ->having('total', '>', 5)
-            ->orderByDesc('satisfaction_score')
+            ->orderByDesc('positive_count')
             ->limit(3)
-            ->get(); // If empty, this returns an empty Collection, which is safe
+            ->get();
 
         $formattedTop = $topPerformers->map(function ($item, $index) {
             return [
                 'rank'  => $index + 1,
-                'unit'  => ucfirst($item->operating_unit),
-                'score' => round($item->satisfaction_score) . '%',
+                'unit'  => strtoupper($item->operating_unit),
+                'score' => $item->positive_count . ' Positive Reviews',
                 'color' => match($index) {
                     0 => 'bg-yellow-400',
                     1 => 'bg-gray-300',
@@ -40,40 +49,33 @@ class DashboardController extends Controller
                     default => 'bg-gray-100'
                 }
             ];
-        })->values(); // Ensure it's a clean array
+        })->values();
 
-        // 3. NEEDS IMPROVEMENT (Safe for empty DB)
+        // 3. ACTION REQUIRED (Top Offices by Negative Count)
         $needsImprovement = Feedback::select('operating_unit')
-            ->selectRaw('count(*) as total')
-            ->selectRaw("AVG(CASE WHEN sentiment = 'Negative' THEN 100 ELSE 0 END) as negative_score")
+            ->whereNotIn(DB::raw('LOWER(TRIM(operating_unit))'), $this->excludedUnits)
+            ->selectRaw("COUNT(CASE WHEN sentiment = 'Negative' THEN 1 END) as negative_count")
             ->groupBy('operating_unit')
-            ->having('total', '>', 5)
-            ->orderByDesc('negative_score')
+            ->orderByDesc('negative_count')
             ->limit(3)
             ->get();
 
         $formattedNeeds = $needsImprovement->map(function ($item, $index) {
-            $posCount = Feedback::where('operating_unit', $item->operating_unit)
-                                ->where('sentiment', 'Positive')
-                                ->count();
-            // Avoid Division by Zero
-            $posScore = $item->total > 0 ? round(($posCount / $item->total) * 100) : 0;
-            
             return [
                 'rank'  => $index + 1,
-                'unit'  => ucfirst($item->operating_unit),
-                'issue' => 'High Negative Sentiment', 
-                'score' => $posScore . '%'
+                'unit'  => strtoupper($item->operating_unit),
+                'issue' => 'Highest Complaint Volume', 
+                'score' => $item->negative_count . ' Negatives'
             ];
         })->values();
 
-        // 4. RECENT FEEDBACK (Safe)
+        // 4. RECENT FEEDBACK
         $recentFeedback = Feedback::latest()
             ->take(5)
             ->get()
             ->map(function ($row) {
                 return [
-                    'unit'      => ucfirst($row->operating_unit ?? 'Unknown'),
+                    'unit'      => strtoupper($row->operating_unit ?? 'General'),
                     'text'      => str()->limit($row->feedback_text ?? '', 60), 
                     'sentiment' => ucfirst($row->sentiment ?? 'Neutral'),
                     'conf'      => ($row->confidence ?? 0) . '%',
@@ -87,19 +89,15 @@ class DashboardController extends Controller
 
         return Inertia::render('Dashboard', [
             'stats'            => $stats,
-            'topPerformers'    => $formattedTop,  // Use the mapped variable
-            'needsImprovement' => $formattedNeeds, // Use the mapped variable
+            'topPerformers'    => $formattedTop,
+            'needsImprovement' => $formattedNeeds,
             'recentFeedback'   => $recentFeedback
         ]);
     }
+
     public function allFeedback()
     {
-        // Fetch data with Pagination (15 per page) to handle 8,000 rows smoothly
-        $feedback = \App\Models\Feedback::orderBy('created_at', 'desc')
-            ->paginate(15);
-
-        return \Inertia\Inertia::render('FeedbackList', [
-            'feedback' => $feedback
-        ]);
+        $feedback = Feedback::orderBy('created_at', 'desc')->paginate(15);
+        return Inertia::render('FeedbackList', ['feedback' => $feedback]);
     }
 }

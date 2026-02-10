@@ -1,8 +1,7 @@
 <script setup>
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
-import { Head, useForm } from '@inertiajs/vue3'; // <--- We use 'useForm' for stability
+import { Head, useForm } from '@inertiajs/vue3';
 
-// Receive Real Data from Laravel Controller
 const props = defineProps({
     stats: {
         type: Object,
@@ -22,14 +21,12 @@ const props = defineProps({
     }
 });
 
-// --- CLEAR DATA LOGIC (Stable Form Method) ---
-const form = useForm({}); // Create an empty form object
+const form = useForm({});
 
 const submitClear = () => {
-    if (confirm('⚠️ DANGER ZONE: ARE YOU SURE?\n\nThis will permanently delete ALL feedback data from the database.\n\nThis action cannot be undone.')) {
-        // Explicitly targets the /clear-data route
+    if (confirm('⚠️ DANGER ZONE: ARE YOU SURE?\n\nThis will permanently delete ALL feedback data.\n\nThis action cannot be undone.')) {
         form.post('/clear-data', {
-            onSuccess: () => alert('✅ System Cleaned: All data has been removed.'),
+            onSuccess: () => alert('✅ System Cleaned: All data removed.'),
             onError: () => alert('❌ Error: Could not clear data.')
         });
     }
@@ -79,7 +76,7 @@ const submitClear = () => {
                  <div class="flex justify-between items-start mb-8">
                     <div>
                         <h3 class="font-black text-[10px] uppercase tracking-widest text-yellow-400">Excellence Awardees</h3>
-                        <p class="text-xl font-bold">Top Performing Units</p>
+                        <p class="text-2xl font-black uppercase">Top Offices</p>
                     </div>
                     <span class="text-2xl">🏆</span>
                  </div>
@@ -95,7 +92,7 @@ const submitClear = () => {
                             </div>
                             <div>
                                 <div class="text-xs font-black uppercase tracking-tight">{{ item.unit }}</div>
-                                <div class="text-[10px] opacity-60">Based on Positive Sentiment %</div>
+                                <div class="text-[10px] opacity-60">Highest Satisfaction Rating</div>
                             </div>
                         </div>
                         <span class="text-sm font-black text-yellow-400">{{ item.score }}</span>
@@ -107,7 +104,7 @@ const submitClear = () => {
                  <div class="flex justify-between items-start mb-8">
                     <div>
                         <h3 class="font-black text-[10px] uppercase tracking-widest text-red-500">Action Required</h3>
-                        <p class="text-xl font-bold text-gray-800">Lowest Satisfaction Scores</p>
+                        <p class="text-2xl font-black text-gray-800 uppercase leading-tight">Top Offices Needing Improvement</p>
                     </div>
                     <span class="text-2xl">⚠️</span>
                  </div>
@@ -128,7 +125,7 @@ const submitClear = () => {
                         </div>
                         <div class="text-right">
                             <span class="text-sm font-black text-red-500">{{ item.score }}</span>
-                            <div class="text-[8px] text-gray-400 font-bold uppercase">Positive Rate</div>
+                            <div class="text-[8px] text-gray-400 font-bold uppercase">Negative Rate</div>
                         </div>
                     </div>
                  </div>
