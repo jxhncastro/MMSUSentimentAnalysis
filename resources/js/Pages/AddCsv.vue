@@ -63,7 +63,7 @@ const submitFile = () => {
     form.post(route('dataset.upload'), {
         forceFormData: true,
         onStart: () => {
-            addLog(">> [SYS] Transferring " + (batchProgress.value?.total_rows || 0) + " rows to server...");
+            addLog(">> [SYS] Transferring Data to server...");
         },
         onSuccess: () => {
             addLog(">> [SUCCESS] File received by server.");

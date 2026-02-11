@@ -28,11 +28,11 @@ class DashboardController extends Controller
         ];
 
         // 2. EXCELLENCE AWARDEES (Top Offices by Positive Count)
-        // We exclude survey ratings here so the actual Office Names can appear.
-        $topPerformers = Feedback::select('operating_unit')
-            ->whereNotIn(DB::raw('LOWER(TRIM(operating_unit))'), $this->excludedUnits)
+        // ✅ Column 'office' used here
+        $topPerformers = Feedback::select('office')
+            ->whereNotIn(DB::raw('LOWER(TRIM(office))'), $this->excludedUnits)
             ->selectRaw("COUNT(CASE WHEN sentiment = 'Positive' THEN 1 END) as positive_count")
-            ->groupBy('operating_unit')
+            ->groupBy('office')
             ->orderByDesc('positive_count')
             ->limit(3)
             ->get();
@@ -40,7 +40,7 @@ class DashboardController extends Controller
         $formattedTop = $topPerformers->map(function ($item, $index) {
             return [
                 'rank'  => $index + 1,
-                'unit'  => strtoupper($item->operating_unit),
+                'unit'  => strtoupper($item->office),
                 'score' => $item->positive_count . ' Positive Reviews',
                 'color' => match($index) {
                     0 => 'bg-yellow-400',
@@ -52,10 +52,11 @@ class DashboardController extends Controller
         })->values();
 
         // 3. ACTION REQUIRED (Top Offices by Negative Count)
-        $needsImprovement = Feedback::select('operating_unit')
-            ->whereNotIn(DB::raw('LOWER(TRIM(operating_unit))'), $this->excludedUnits)
+        // ✅ Column 'office' used here
+        $needsImprovement = Feedback::select('office')
+            ->whereNotIn(DB::raw('LOWER(TRIM(office))'), $this->excludedUnits)
             ->selectRaw("COUNT(CASE WHEN sentiment = 'Negative' THEN 1 END) as negative_count")
-            ->groupBy('operating_unit')
+            ->groupBy('office')
             ->orderByDesc('negative_count')
             ->limit(3)
             ->get();
@@ -63,20 +64,21 @@ class DashboardController extends Controller
         $formattedNeeds = $needsImprovement->map(function ($item, $index) {
             return [
                 'rank'  => $index + 1,
-                'unit'  => strtoupper($item->operating_unit),
+                'unit'  => strtoupper($item->office),
                 'issue' => 'Highest Complaint Volume', 
                 'score' => $item->negative_count . ' Negatives'
             ];
         })->values();
 
         // 4. RECENT FEEDBACK
+        // ✅ Columns 'office' and 'comment' used here
         $recentFeedback = Feedback::latest()
             ->take(5)
             ->get()
             ->map(function ($row) {
                 return [
-                    'unit'      => strtoupper($row->operating_unit ?? 'General'),
-                    'text'      => str()->limit($row->feedback_text ?? '', 60), 
+                    'unit'      => strtoupper($row->office ?? 'General'),
+                    'text'      => str()->limit($row->comment ?? '', 60), 
                     'sentiment' => ucfirst($row->sentiment ?? 'Neutral'),
                     'conf'      => ($row->confidence ?? 0) . '%',
                     'color'     => match($row->sentiment) {
@@ -97,6 +99,7 @@ class DashboardController extends Controller
 
     public function allFeedback()
     {
+        // ✅ Standard Eloquent handles renamed columns automatically 
         $feedback = Feedback::orderBy('created_at', 'desc')->paginate(15);
         return Inertia::render('FeedbackList', ['feedback' => $feedback]);
     }

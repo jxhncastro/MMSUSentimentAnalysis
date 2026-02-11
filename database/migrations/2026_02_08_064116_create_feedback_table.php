@@ -6,13 +6,25 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
+    public function up(): void
+    {
+        Schema::create('feedback', function (Blueprint $table) {
+            $table->id();
+            // Maps to CSV: "Office/Unit Visited"
+            $table->string('office'); 
+            
+            // Maps to CSV: "Suggestions on how we can further improve our services"
+            $table->text('comment'); 
+            
+            $table->string('services_availed')->nullable();
+            $table->string('sentiment');
+            $table->string('topic')->nullable();
+            $table->string('confidence')->nullable(); 
+            $table->string('method')->default('BERT/XLMR');
+            $table->timestamps();
+        });
+    }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('feedback');
