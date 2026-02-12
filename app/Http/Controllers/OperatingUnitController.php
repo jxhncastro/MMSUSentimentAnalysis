@@ -2,69 +2,110 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Feedback;
 use Illuminate\Http\Request;
-use App\Models\OperatingUnit;
-use App\Models\UnitService;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class OperatingUnitController extends Controller
 {
-    public function index()
+    /**
+     * Strict list of survey noise to exclude from rankings.
+     */
+    protected $excludedUnits = [
+        'strongly agree', 'agree', 'neither agree nor disagree', 
+        'disagree', 'strongly disagree', 'n/a', 'na', 'none', 
+        'general service', 'unknown', 'select office'
+    ];
+
+    public function index(Request $request)
     {
-        // Return units with their services
-        return OperatingUnit::with('services')->get();
-    }
+        // 1. Base Query
+        $query = Feedback::query();
 
-    public function upload(Request $request)
-    {
-        $request->validate([
-            'file' => 'required|file|mimes:csv,txt'
-        ]);
-
-        $path = $request->file('file')->getRealPath();
-        $handle = fopen($path, 'r');
-        
-        // Skip Header
-        fgetcsv($handle); 
-
-        DB::beginTransaction();
-        
-        try {
-            // Optional: Reset tables to avoid duplicates
-            // UnitService::truncate();
-            // OperatingUnit::truncate();
-
-            $currentOffice = null;
-
-            while (($row = fgetcsv($handle)) !== false) {
-                $officeName = trim($row[0]); // Column 0: Operating Units
-                $serviceName = trim($row[1] ?? ''); // Column 1: Services Availed
-
-                // 1. Handle "Fill Down" Logic
-                if (!empty($officeName)) {
-                    $currentOffice = $officeName;
-                }
-
-                // If we have a valid office (either current or from previous row)
-                if ($currentOffice) {
-                    // Create/Find Office
-                    $unit = OperatingUnit::firstOrCreate(['name' => $currentOffice]);
-
-                    // Create Service (if not empty)
-                    if (!empty($serviceName)) {
-                        $unit->services()->firstOrCreate(['name' => $serviceName]);
-                    }
-                }
-            }
-
-            DB::commit();
-            fclose($handle);
-
-            return response()->json(['message' => 'Operating Units updated successfully!']);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json(['message' => 'Error: ' . $e->getMessage()], 500);
+        // --- ROBUST FILTERING (Fixes "0 Data" issue) ---
+        // We use LOWER() and TRIM() to ensure " University Registrar's Office " matches "University Registrar's Office"
+        if ($request->unit) {
+            $query->where(DB::raw('LOWER(TRIM(office))'), strtolower(trim($request->unit)));
         }
+
+        // --- CHART 1: OVERALL SATISFACTION (Donut) ---
+        // We fetch raw counts first, then normalize keys (Positive/positive) in PHP
+        $rawSentiment = (clone $query)
+            ->select('sentiment', DB::raw('count(*) as count'))
+            ->groupBy('sentiment')
+            ->pluck('count', 'sentiment')
+            ->toArray();
+
+        // Normalize Keys to Title Case (Positive, Negative, Neutral)
+        $overallSentiment = [
+            'Positive' => ($rawSentiment['Positive'] ?? 0) + ($rawSentiment['positive'] ?? 0) + ($rawSentiment['POSITIVE'] ?? 0),
+            'Negative' => ($rawSentiment['Negative'] ?? 0) + ($rawSentiment['negative'] ?? 0) + ($rawSentiment['NEGATIVE'] ?? 0),
+            'Neutral'  => ($rawSentiment['Neutral']  ?? 0) + ($rawSentiment['neutral']  ?? 0) + ($rawSentiment['NEUTRAL'] ?? 0),
+        ];
+
+        // --- CHART 2: SENTIMENT BY TOPIC (Stacked Bar) ---
+        $sentimentByTopic = (clone $query)
+            ->select('topic', 'sentiment', DB::raw('count(*) as count'))
+            ->whereNotNull('topic')
+            ->where('topic', '!=', 'General')
+            ->groupBy('topic', 'sentiment')
+            ->get()
+            ->groupBy('topic')
+            ->map(function ($group) {
+                return [
+                    'positive' => $group->whereIn('sentiment', ['Positive', 'positive', 'POSITIVE'])->sum('count'),
+                    'negative' => $group->whereIn('sentiment', ['Negative', 'negative', 'NEGATIVE'])->sum('count'),
+                    'neutral'  => $group->whereIn('sentiment', ['Neutral', 'neutral', 'NEUTRAL'])->sum('count'),
+                ];
+            });
+
+        // --- CHART 3: TOP NEGATIVE OFFICES (Global View Only) ---
+        // Only calculate this if NO unit is selected (to show global hotspots)
+        $topNegative = [];
+        if (!$request->unit) {
+            $topNegative = Feedback::whereIn('sentiment', ['Negative', 'negative', 'NEGATIVE'])
+                ->whereNotIn(DB::raw('LOWER(TRIM(office))'), $this->excludedUnits)
+                ->select('office', DB::raw('count(*) as count'))
+                ->groupBy('office')
+                ->orderByDesc('count')
+                ->limit(5)
+                ->get();
+        }
+
+        // --- CHART 4: TOP POSITIVE OFFICES (Global View Only) ---
+        $topPositive = [];
+        if (!$request->unit) {
+            $topPositive = Feedback::whereIn('sentiment', ['Positive', 'positive', 'POSITIVE'])
+                ->whereNotIn(DB::raw('LOWER(TRIM(office))'), $this->excludedUnits)
+                ->select('office', DB::raw('count(*) as count'))
+                ->groupBy('office')
+                ->orderByDesc('count')
+                ->limit(5)
+                ->get();
+        }
+
+        // --- 5. RECENT FEEDBACK TABLE ---
+        $recentFeedback = (clone $query)
+            ->latest()
+            ->take(10)
+            ->get()
+            ->map(function($item) {
+                // Normalize sentiment string for the UI badges
+                $item->sentiment = ucfirst(strtolower($item->sentiment)); 
+                return $item;
+            });
+
+        // --- RETURN TO VUE ---
+        return Inertia::render('OperatingUnits', [
+            'charts' => [
+                'overall_sentiment'   => $overallSentiment,
+                'sentiment_by_topic'  => $sentimentByTopic,
+                'top_negative'        => $topNegative,
+                'top_positive'        => $topPositive,
+            ],
+            'recent_feedback' => $recentFeedback,
+            'filters' => $request->only(['unit']) // Pass back the selected unit
+        ]);
     }
 }

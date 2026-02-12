@@ -1,12 +1,13 @@
 <script setup>
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
 import { Head, useForm, Link } from '@inertiajs/vue3';
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onUnmounted } from 'vue';
 import axios from 'axios';
 
 const isDragging = ref(false);
+const isConfirming = ref(false); // ✅ New state for confirmation
 const terminalLogs = ref([]);
-const batchProgress = ref(null); // Tracks the 8k rows progress
+const batchProgress = ref(null);
 let pollingInterval = null;
 
 const form = useForm({
@@ -25,7 +26,6 @@ const addLog = (msg) => {
     if (terminalLogs.value.length > 8) terminalLogs.value.shift();
 };
 
-// Poll the server for background progress
 const startPolling = () => {
     pollingInterval = setInterval(async () => {
         try {
@@ -50,7 +50,7 @@ const handleFile = (event) => {
 
     if (selected.name.endsWith('.csv')) {
         form.file = selected;
-        submitFile();
+        isConfirming.value = true; // ✅ Show confirmation screen
     } else {
         alert("Please upload a CSV file.");
     }
@@ -58,6 +58,7 @@ const handleFile = (event) => {
 };
 
 const submitFile = () => {
+    isConfirming.value = false; // ✅ Close confirmation screen
     addLog(">> [SYS] Initializing upload for " + form.file.name);
     
     form.post(route('dataset.upload'), {
@@ -68,7 +69,7 @@ const submitFile = () => {
         onSuccess: () => {
             addLog(">> [SUCCESS] File received by server.");
             addLog(">> [SYS] Background Queue started...");
-            startPolling(); // Start watching the progress bar
+            startPolling();
         },
         onError: () => {
             addLog(">> [ERROR] Upload failed. Check file size.");
@@ -76,11 +77,17 @@ const submitFile = () => {
     });
 };
 
+const cancelConfirmation = () => {
+    form.file = null;
+    isConfirming.value = false;
+};
+
+// Updated: Added isConfirming check to keep dropzone hidden during confirmation
 const showProcessingScreen = computed(() => form.processing || form.wasSuccessful || batchProgress.value);
 
 const currentStep = computed(() => {
     if (batchProgress.value?.status === 'completed') return 4;
-    if (batchProgress.value) return 3; // Processing rows
+    if (batchProgress.value) return 3;
     if (form.processing) return 1;
     return 1;
 });
@@ -97,7 +104,7 @@ onUnmounted(() => clearInterval(pollingInterval));
 
             <div class="bg-white flex-1 rounded-[35px] p-10 shadow-sm border border-gray-100 flex flex-col items-center justify-center relative overflow-hidden min-h-[500px]">
                 
-                <div v-if="!showProcessingScreen" class="w-full max-w-xl transition-all duration-500">
+                <div v-if="!showProcessingScreen && !isConfirming" class="w-full max-w-xl transition-all duration-500">
                     <div 
                         @dragover.prevent="isDragging = true"
                         @dragleave.prevent="isDragging = false"
@@ -115,6 +122,25 @@ onUnmounted(() => clearInterval(pollingInterval));
                         <label for="fileInput" class="bg-[#0c4b33] text-white px-10 py-4 rounded-2xl font-bold hover:bg-black transition shadow-xl cursor-pointer uppercase text-xs tracking-widest">
                             Browse Files
                         </label>
+                    </div>
+                </div>
+
+                <div v-else-if="isConfirming" class="w-full max-w-md animate-in fade-in zoom-in duration-300 text-center">
+                    <div class="w-20 h-20 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center mb-6 text-3xl mx-auto shadow-inner">⚠️</div>
+                    <h3 class="text-2xl font-black text-gray-800 mb-2">Confirm Upload</h3>
+                    <div class="bg-gray-50 rounded-2xl p-4 mb-8 border border-gray-100">
+                        <p class="text-xs text-gray-400 uppercase font-black tracking-widest mb-1">Selected File</p>
+                        <p class="font-bold text-[#0c4b33] truncate">{{ form.file.name }}</p>
+                        <p class="text-[10px] text-gray-400 mt-1 font-mono uppercase">{{ (form.file.size / 1024).toFixed(2) }} KB</p>
+                    </div>
+                    
+                    <div class="flex flex-col gap-3">
+                        <button @click="submitFile" class="bg-[#0c4b33] text-white py-4 rounded-2xl font-bold hover:bg-black transition shadow-lg uppercase text-xs tracking-widest">
+                            Analyze this Dataset
+                        </button>
+                        <button @click="cancelConfirmation" class="text-gray-400 py-2 rounded-2xl font-bold hover:text-red-500 transition uppercase text-[10px] tracking-widest">
+                            Cancel Selection
+                        </button>
                     </div>
                 </div>
 
@@ -146,11 +172,7 @@ onUnmounted(() => clearInterval(pollingInterval));
                     <div v-if="batchProgress" class="mb-8 bg-gray-50 p-4 rounded-2xl border border-gray-100">
                         <div class="flex justify-between text-[10px] font-bold text-[#0c4b33] mb-2 uppercase tracking-widest">
                             <span>Progress</span>
-                            <span>
-                                {{ (batchProgress.total_rows && batchProgress.total_rows > 0) 
-                                    ? Math.round((batchProgress.processed_rows / batchProgress.total_rows) * 100) 
-                                    : 0 }}%
-                            </span>
+                            <span>{{ (batchProgress.total_rows > 0) ? Math.round((batchProgress.processed_rows / batchProgress.total_rows) * 100) : 0 }}%</span>
                         </div>
                         <div class="w-full bg-gray-200 h-3 rounded-full overflow-hidden">
                             <div 

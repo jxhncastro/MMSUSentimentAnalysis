@@ -1,9 +1,29 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
-import { Head } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
+import debounce from 'lodash/debounce';
 
-// 1. Full Data Mapping from OR_SA - Sheet1.csv
+// --- PROPS (Data from Controller) ---
+const props = defineProps({
+    charts: {
+        type: Object,
+        default: () => ({
+            overall_sentiment: { Positive: 0, Negative: 0, Neutral: 0 },
+            sentiment_by_topic: {},
+            top_negative: [], // Used if 'All Operating Units' is selected
+            top_positive: [],
+            confidence_levels: { High: 0, Medium: 0, Low: 0 }
+        })
+    },
+    recent_feedback: {
+        type: Array,
+        default: () => []
+    },
+    filters: Object
+});
+
+// --- 1. OPERATING UNITS DATA (Kept your full list) ---
 const unitData = {
     "Accounting Office": ["Signing of Clearance of Students", "Certification of Net take home pay", "Signing of clearance of employees"],
     "Administrative Service Division ": ["Issuance of Certificate of Appearance", "Issuance of an Affidavit of Loss (University/Library Identification Card)", "Issuance of Certification of No Pending Case", "Confirmation of GSIS Loan", "Online Application of Bond", "Authentication/Certification of Document/s"],
@@ -52,20 +72,68 @@ const unitData = {
     "University Registrar's Office": ["Admission and Registration", "Issuance of TOR/Diploma", "Authentication of Documents", "Issuance of ID", "Leave of Absence (LOA)"]
 };
 
+// --- STATE & COMPUTED ---
 const operatingUnits = Object.keys(unitData).sort();
-const selectedUnit = ref("University Registrar's Office");
-const selectedService = ref("All Services"); // Track selected service
+// Default to filter value or first unit
+const selectedUnit = ref(props.filters?.unit || "University Registrar's Office"); 
+const selectedService = ref("All Services");
 
-// Get services for selected unit + "All Services" option
 const services = computed(() => {
     const list = unitData[selectedUnit.value] || [];
     return ["All Services", ...list];
 });
 
-// Reset service when unit changes
-watch(selectedUnit, () => {
-    selectedService.value = "All Services";
+// --- CHART COMPUTATIONS ---
+
+// 1. Total Count
+const totalReviews = computed(() => {
+    return (props.charts.overall_sentiment.Positive || 0) + 
+           (props.charts.overall_sentiment.Negative || 0) + 
+           (props.charts.overall_sentiment.Neutral || 0);
 });
+
+// 2. Sentiment Donut Gradient
+const sentimentGradient = computed(() => {
+    const total = totalReviews.value;
+    if (total === 0) return 'conic-gradient(lightgray 0% 100%)';
+
+    const pos = ((props.charts.overall_sentiment.Positive || 0) / total) * 100;
+    const neu = ((props.charts.overall_sentiment.Neutral || 0) / total) * 100;
+    // const neg = remainder;
+
+    return `conic-gradient(
+        #0c4b33 0% ${pos}%, 
+        #fbbf24 ${pos}% ${pos + neu}%, 
+        #ef4444 ${pos + neu}% 100%
+    )`;
+});
+
+const positivePercentage = computed(() => {
+    return totalReviews.value === 0 ? 0 : Math.round(((props.charts.overall_sentiment.Positive || 0) / totalReviews.value) * 100);
+});
+
+// 3. Max Topic Count for scaling bars
+const maxTopicCount = computed(() => {
+    let max = 0;
+    Object.values(props.charts.sentiment_by_topic).forEach(t => {
+        const total = (t.positive || 0) + (t.negative || 0) + (t.neutral || 0);
+        if (total > max) max = total;
+    });
+    return max || 1;
+});
+
+// --- WATCHERS ---
+
+// Trigger backend reload when Unit changes
+watch(selectedUnit, debounce((newUnit) => {
+    selectedService.value = "All Services";
+    router.get('/operating-units', { unit: newUnit }, {
+        preserveState: true,
+        preserveScroll: true,
+        only: ['charts', 'recent_feedback', 'filters']
+    });
+}, 300));
+
 </script>
 
 <template>
@@ -86,7 +154,7 @@ watch(selectedUnit, () => {
                         v-model="selectedUnit" 
                         class="border-none bg-transparent focus:ring-0 text-sm font-bold text-gray-700 min-w-[300px] cursor-pointer"
                     >
-                        <option v-for="unit in operatingUnits" :key="unit" :value="unit">
+                        <option value="">All Operating Units</option> <option v-for="unit in operatingUnits" :key="unit" :value="unit">
                             {{ unit }}
                         </option>
                     </select>
@@ -125,9 +193,10 @@ watch(selectedUnit, () => {
                         SENTIMENT RATIO
                     </h3>
                     
-                    <div class="relative w-52 h-52 rounded-full bg-[conic-gradient(at_center,_#0c4b33_0deg_240deg,_#fbbf24_240deg_310deg,_#ef4444_310deg_360deg)] shadow-xl animate-spin-slow">
+                    <div class="relative w-52 h-52 rounded-full shadow-xl animate-in zoom-in duration-700"
+                         :style="{ background: sentimentGradient }">
                         <div class="absolute inset-8 bg-white rounded-full flex flex-col items-center justify-center shadow-inner">
-                            <span class="text-4xl font-black text-[#0c4b33]">92%</span>
+                            <span class="text-4xl font-black text-[#0c4b33]">{{ positivePercentage }}%</span>
                             <span class="text-[9px] text-gray-400 font-bold uppercase tracking-tighter">Positive</span>
                         </div> 
                     </div>
@@ -148,44 +217,115 @@ watch(selectedUnit, () => {
                     </div>
                 </div>
 
-                <div class="bg-white rounded-[35px] p-8 shadow-sm min-h-[350px] flex flex-col relative border border-gray-50">
-                    <h3 class="text-center font-bold text-gray-400 text-[10px] uppercase tracking-[0.2em] mb-12">
-                        MONTHLY SERVICE VOLUME
+                <div class="bg-white rounded-[35px] p-8 shadow-sm min-h-[350px] flex flex-col relative border border-gray-50 overflow-y-auto custom-scrollbar">
+                    <h3 class="text-center font-bold text-gray-400 text-[10px] uppercase tracking-[0.2em] mb-8 sticky top-0 bg-white z-10 pb-2">
+                        SENTIMENT DRIVERS (TOPICS)
                     </h3>
                     
-                    <div class="flex-1 flex items-end justify-between gap-3 px-6 pb-6 border-b border-gray-100 border-l border-gray-100">
-                        <div v-for="(h, i) in [40, 75, 55, 100, 65, 80, 45]" :key="i" 
-                             :style="{ height: h + '%' }" 
-                             class="w-full bg-[#0c4b33] opacity-80 hover:opacity-100 hover:bg-yellow-500 transition-all duration-300 rounded-t-xl shadow-sm cursor-pointer group relative">
-                             <span class="absolute -top-8 left-1/2 -translate-x-1/2 bg-black text-white text-[9px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
-                                {{ h * 2 }}
-                             </span>
+                    <div class="flex-1 flex flex-col gap-4">
+                        <div v-if="Object.keys(props.charts.sentiment_by_topic).length === 0" class="flex-1 flex items-center justify-center text-gray-300 text-xs italic">
+                            No topic data available for this unit.
                         </div>
-                    </div>
 
-                    <div class="flex justify-between px-4 mt-6 text-[10px] font-bold text-gray-300 uppercase tracking-widest">
-                        <span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span><span>May</span><span>Jun</span><span>Jul</span>
+                        <div v-for="(counts, topic) in props.charts.sentiment_by_topic" :key="topic" class="group">
+                            <div class="flex justify-between text-[10px] font-bold text-gray-600 mb-1">
+                                <span>{{ topic }}</span>
+                                <span class="opacity-50">{{ (counts.positive || 0) + (counts.negative || 0) + (counts.neutral || 0) }}</span>
+                            </div>
+                            <div class="w-full h-2.5 bg-gray-100 rounded-full flex overflow-hidden">
+                                <div class="bg-[#0c4b33] h-full" :style="{ width: ((counts.positive || 0) / maxTopicCount * 100) + '%' }"></div>
+                                <div class="bg-yellow-400 h-full" :style="{ width: ((counts.neutral || 0) / maxTopicCount * 100) + '%' }"></div>
+                                <div class="bg-red-500 h-full" :style="{ width: ((counts.negative || 0) / maxTopicCount * 100) + '%' }"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <div class="grid grid-cols-2 md:grid-cols-4 gap-5">
-                <div v-for="(card, index) in [
-                    { label: 'Total Feedback', color: 'bg-white text-gray-800 border-gray-100 border', val: '1,420', icon: '📊' },
-                    { label: 'Positive', color: 'bg-[#0c4b33] text-white', val: '1,280', icon: '😊' },
-                    { label: 'Negative', color: 'bg-red-500 text-white', val: '65', icon: '😟' },
-                    { label: 'Neutral', color: 'bg-yellow-500 text-white', val: '75', icon: '😐' }
-                ]" :key="index" 
-                    class="transition-all duration-300 rounded-[25px] p-6 shadow-sm flex flex-col justify-between h-32 hover:scale-105 cursor-default"
-                    :class="card.color">
+                <div class="transition-all duration-300 rounded-[25px] p-6 shadow-sm flex flex-col justify-between h-32 hover:scale-105 cursor-default bg-white text-gray-800 border-gray-100 border">
                     <div class="flex justify-between items-start">
-                        <div class="text-[9px] opacity-80 uppercase font-black tracking-wider leading-tight">{{ card.label }}</div>
-                        <span class="text-sm grayscale opacity-50">{{ card.icon }}</span>
+                        <div class="text-[9px] opacity-80 uppercase font-black tracking-wider leading-tight">Total Feedback</div>
+                        <span class="text-sm grayscale opacity-50">📊</span>
                     </div>
-                    <div class="text-3xl font-black">{{ card.val }}</div>
+                    <div class="text-3xl font-black">{{ totalReviews }}</div>
+                </div>
+
+                <div class="transition-all duration-300 rounded-[25px] p-6 shadow-sm flex flex-col justify-between h-32 hover:scale-105 cursor-default bg-[#0c4b33] text-white">
+                    <div class="flex justify-between items-start">
+                        <div class="text-[9px] opacity-80 uppercase font-black tracking-wider leading-tight">Positive</div>
+                        <span class="text-sm grayscale opacity-50">😊</span>
+                    </div>
+                    <div class="text-3xl font-black">{{ props.charts.overall_sentiment.Positive || 0 }}</div>
+                </div>
+
+                <div class="transition-all duration-300 rounded-[25px] p-6 shadow-sm flex flex-col justify-between h-32 hover:scale-105 cursor-default bg-red-500 text-white">
+                    <div class="flex justify-between items-start">
+                        <div class="text-[9px] opacity-80 uppercase font-black tracking-wider leading-tight">Negative</div>
+                        <span class="text-sm grayscale opacity-50">😟</span>
+                    </div>
+                    <div class="text-3xl font-black">{{ props.charts.overall_sentiment.Negative || 0 }}</div>
+                </div>
+
+                <div class="transition-all duration-300 rounded-[25px] p-6 shadow-sm flex flex-col justify-between h-32 hover:scale-105 cursor-default bg-yellow-400 text-white">
+                    <div class="flex justify-between items-start">
+                        <div class="text-[9px] opacity-80 uppercase font-black tracking-wider leading-tight">Neutral</div>
+                        <span class="text-sm grayscale opacity-50">😐</span>
+                    </div>
+                    <div class="text-3xl font-black">{{ props.charts.overall_sentiment.Neutral || 0 }}</div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-[25px] p-8 shadow-sm border border-gray-100 overflow-hidden">
+                <h3 class="font-bold text-gray-400 text-[10px] uppercase tracking-[0.2em] mb-6">
+                    📋 LATEST FEEDBACK FOR {{ selectedUnit || 'ALL UNITS' }}
+                </h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead>
+                            <tr class="border-b border-gray-100 text-[10px] font-black text-gray-400 uppercase tracking-wider">
+                                <th class="pb-3 pl-2">Office</th>
+                                <th class="pb-3">Feedback</th>
+                                <th class="pb-3">Topic</th>
+                                <th class="pb-3 text-right pr-2">Sentiment</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-50">
+                            <tr v-for="row in props.recent_feedback" :key="row.id" class="group hover:bg-gray-50 transition">
+                                <td class="py-3 pl-2 font-bold text-gray-700 text-xs whitespace-nowrap">{{ row.office }}</td>
+                                <td class="py-3 max-w-md truncate text-gray-500 italic text-xs pr-4">"{{ row.comment }}"</td>
+                                <td class="py-3">
+                                    <span class="bg-gray-100 text-gray-600 px-2 py-1 rounded text-[10px] font-bold uppercase">{{ row.topic }}</span>
+                                </td>
+                                <td class="py-3 text-right pr-2">
+                                    <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase"
+                                          :class="{
+                                              'bg-green-100 text-green-700': row.sentiment === 'Positive',
+                                              'bg-red-100 text-red-700': row.sentiment === 'Negative',
+                                              'bg-yellow-100 text-yellow-700': row.sentiment === 'Neutral'
+                                          }">
+                                        {{ row.sentiment }}
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr v-if="props.recent_feedback.length === 0">
+                                <td colspan="4" class="py-6 text-center text-xs text-gray-400 italic">No recent feedback found for this unit.</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
         </div>
     </DashboardLayout>
 </template>
+
+<style scoped>
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+.no-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+}
+</style>

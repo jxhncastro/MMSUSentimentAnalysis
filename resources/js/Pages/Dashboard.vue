@@ -75,20 +75,22 @@ const props = defineProps({
     },
     filters: {
         type: Object,
-        default: () => ({ search: '', unit: '' })
+        default: () => ({ search: '', unit: '', sort_sentiment: '' })
     }
 });
 
 // Initialize state
 const search = ref(props.filters?.search || '');
 const unitFilter = ref(props.filters?.unit || '');
+const sortSentiment = ref(props.filters?.sort_sentiment || '');
 const isRefreshing = ref(false);
 
 // --- SEARCH & FILTER LOGIC ---
 const performSearch = debounce(() => {
     router.get(window.location.pathname, { 
         search: search.value, 
-        unit: unitFilter.value 
+        unit: unitFilter.value,
+        sort_sentiment: sortSentiment.value // Pass sort param
     }, {
         preserveState: true,
         preserveScroll: true,
@@ -96,6 +98,18 @@ const performSearch = debounce(() => {
         only: ['feedback', 'stats']
     });
 }, 300);
+
+// Sort Toggle Function
+const toggleSort = () => {
+    if (sortSentiment.value === '') {
+        sortSentiment.value = 'desc'; // First click: Sort Descending (Positive -> Neutral -> Negative)
+    } else if (sortSentiment.value === 'desc') {
+        sortSentiment.value = 'asc';  // Second click: Sort Ascending
+    } else {
+        sortSentiment.value = '';     // Third click: Reset (Date sort)
+    }
+    performSearch();
+};
 
 watch(search, () => performSearch());
 watch(unitFilter, () => performSearch());
@@ -129,7 +143,7 @@ const refreshData = () => {
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
             <div>
                 <h2 class="text-2xl font-black text-[#0c4b33] uppercase tracking-wide">Executive Overview</h2>
-                <p class="text-sm text-gray-500 font-bold">Real-time Sentiment Analytics</p>
+                <p class="text-sm text-gray-500 font-bold">Stakeholder Feedback Analysis</p>
             </div>
             
             <button 
@@ -284,7 +298,17 @@ const refreshData = () => {
                             <th class="py-4 pr-4 pl-4">Operating Unit</th>
                             <th class="py-4 pr-4 w-1/3">Review</th>
                             <th class="py-4 pr-4">Services</th>
-                            <th class="py-4 text-right pr-4">Sentiment</th>
+                            <th 
+                                class="py-4 text-right pr-4 cursor-pointer hover:text-[#0c4b33] transition-colors select-none"
+                                @click="toggleSort"
+                            >
+                                <div class="flex items-center justify-end gap-1">
+                                    Sentiment
+                                    <span v-if="sortSentiment === 'asc'">▲</span>
+                                    <span v-else-if="sortSentiment === 'desc'">▼</span>
+                                    <span v-else class="text-gray-300">↕</span>
+                                </div>
+                            </th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-50 text-sm">

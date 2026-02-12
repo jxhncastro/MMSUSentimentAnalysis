@@ -68,7 +68,7 @@ class DashboardController extends Controller
                 ];
             });
 
-        // 4. FEEDBACK LIST (With Search & Operating Unit Filter)
+        // 4. FEEDBACK LIST (With Search, Filter & Sort)
         $query = Feedback::query();
 
         // Apply Search Filter
@@ -84,8 +84,16 @@ class DashboardController extends Controller
             $query->where('office', $request->unit);
         }
 
-        $feedback = $query->orderBy('created_at', 'desc')
-            ->paginate(5)
+        // ✅ Apply Sentiment Sorting (New Feature)
+        if ($request->sort_sentiment) {
+            // Sort by sentiment column (asc or desc)
+            $query->orderBy('sentiment', $request->sort_sentiment);
+        } else {
+            // Default: Newest first
+            $query->orderBy('created_at', 'desc');
+        }
+
+        $feedback = $query->paginate(5) // Changed to 5 as requested
             ->withQueryString()
             ->through(fn ($item) => [
                 'id'               => $item->id,
@@ -102,7 +110,8 @@ class DashboardController extends Controller
             'topPerformers'    => $topPerformers,
             'needsImprovement' => $needsImprovement,
             'feedback'         => $feedback,
-            'filters'          => $request->only(['search', 'unit']) 
+            // Pass filters back to Vue (including sort_sentiment)
+            'filters'          => $request->only(['search', 'unit', 'sort_sentiment']) 
         ]);
     }
 
