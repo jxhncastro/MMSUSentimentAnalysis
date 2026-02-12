@@ -85,7 +85,7 @@ class DashboardController extends Controller
         }
 
         $feedback = $query->orderBy('created_at', 'desc')
-            ->paginate(10)
+            ->paginate(5)
             ->withQueryString()
             ->through(fn ($item) => [
                 'id'               => $item->id,

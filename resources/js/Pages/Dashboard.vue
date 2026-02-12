@@ -45,7 +45,7 @@ const unitData = {
     "Quality Assurance": [],
     "Records and Archives Management Office": [],
     "Research Directorate": [],
-    "Strategic Communication  Office": [],
+    "Strategic Communication  Office": [],
     "Students and Affairs Services Office": [],
     "Supply and Property Management Office": [],
     "URERB": [],
@@ -75,7 +75,7 @@ const props = defineProps({
     },
     filters: {
         type: Object,
-        default: () => ({ search: '', unit: '' }) // Changed 'sentiment' to 'unit'
+        default: () => ({ search: '', unit: '' })
     }
 });
 
@@ -88,7 +88,7 @@ const isRefreshing = ref(false);
 const performSearch = debounce(() => {
     router.get(window.location.pathname, { 
         search: search.value, 
-        unit: unitFilter.value // Send 'unit' to backend
+        unit: unitFilter.value 
     }, {
         preserveState: true,
         preserveScroll: true,
@@ -226,7 +226,7 @@ const refreshData = () => {
                 <button 
                     @click="refreshData"
                     :disabled="isRefreshing"
-                    class="flex items-center gap-2 px-4 py-2 bg-white hover:bg-gray-50 text-gray-600 text-xs font-bold rounded-xl border border-gray-200 transition shadow-sm disabled:opacity-50"
+                    class="flex items-center gap-2 px-4 py-2 bg-white hover:bg-gray-50 text-gray-600 text-xs font-bold rounded-xl border border-gray-200 transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     <svg v-if="isRefreshing" class="animate-spin h-3.5 w-3.5 text-[#0c4b33]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -284,7 +284,6 @@ const refreshData = () => {
                             <th class="py-4 pr-4 pl-4">Operating Unit</th>
                             <th class="py-4 pr-4 w-1/3">Review</th>
                             <th class="py-4 pr-4">Services</th>
-                            <!-- <th class="py-4 pr-4">Aspect</th> -->
                             <th class="py-4 text-right pr-4">Sentiment</th>
                         </tr>
                     </thead>
@@ -298,22 +297,16 @@ const refreshData = () => {
                             </td>
 
                             <td class="py-4 pr-4 text-gray-600 text-xs leading-relaxed group-hover:text-gray-900 transition-colors align-top">
-                                <div class="max-w-xs md:max-w-md line-clamp-2 italic">
+                                <div class="italic">
                                     "{{ row.feedback_text }}"
                                 </div>
                             </td>
 
                             <td class="py-4 pr-4 align-top">
-                                <div class="text-[10px] text-gray-400 uppercase font-mono font-bold truncate max-w-[150px]" :title="row.services_availed">
+                                <div class="text-[10px] text-gray-400 uppercase font-mono font-bold" :title="row.services_availed">
                                     {{ row.services_availed || '---' }}
                                 </div>
                             </td>
-
-                            <!-- <td class="py-4 pr-4 align-top">
-                                <span class="inline-block text-purple-600 bg-purple-50 border border-purple-100 px-2 py-1 rounded text-[10px] font-bold font-mono lowercase whitespace-nowrap">
-                                    {{ row.topic || 'general' }}
-                                </span>
-                            </td> -->
 
                             <td class="py-4 text-right align-top pr-4">
                                 <span 
