@@ -1,6 +1,60 @@
 <script setup>
 import DashboardLayout from '@/Layouts/DashboardLayout.vue';
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, useForm, Link, router } from '@inertiajs/vue3';
+import { ref, watch, computed } from 'vue';
+import debounce from 'lodash/debounce'; 
+
+// --- 1. OPERATING UNITS DATA ---
+const unitData = {
+    "Accounting Office": [],
+    "Administrative Service Division ": [],
+    "Alumni Relations Office": [],
+    "Auxillary Directorate": [],
+    "Budget Management Section": [],
+    "CAFSD": [],
+    "CAS": [],
+    "CASAT": [],
+    "CBEA": [],
+    "CCIS": [],
+    "CHS": [],
+    "CIT": [],
+    "COE": [],
+    "COL": [],
+    "COM": [],
+    "CTE": [],
+    "CVM": [],
+    "Cash Management": [],
+    "Distance Learning Office": [],
+    "ETEEAP": [],
+    "Extension Directorate": [],
+    "General Services Directorate": [],
+    "Graduate School": [],
+    "Health and Wellness Services": [],
+    "Human Resources Management Office ": [],
+    "Information Technology Center": [],
+    "Innovation and Technology Directorate (former S&T Park)": [],
+    "Instructional Materials Development Office": [],
+    "Internal Audit Services": [],
+    "Internationalization, Linkages, and Partnership Directorate": [],
+    "NBERIC": [],
+    "OJT - SIPP Practicum Coordinating Office": [],
+    "Office of the University and Board Secretary": [],
+    "PPDO": [],
+    "Planning Office": [],
+    "Procurement Division": [],
+    "Quality Assurance": [],
+    "Records and Archives Management Office": [],
+    "Research Directorate": [],
+    "Strategic Communication  Office": [],
+    "Students and Affairs Services Office": [],
+    "Supply and Property Management Office": [],
+    "URERB": [],
+    "University Library System": [],
+    "University Registrar's Office": []
+};
+
+// Extract keys for the dropdown list
+const operatingUnits = computed(() => Object.keys(unitData).sort());
 
 const props = defineProps({
     stats: {
@@ -15,21 +69,55 @@ const props = defineProps({
         type: Array,
         default: () => []
     },
-    recentFeedback: {
-        type: Array,
-        default: () => []
+    feedback: {
+        type: Object, 
+        default: () => ({ data: [], links: [], meta: {} })
+    },
+    filters: {
+        type: Object,
+        default: () => ({ search: '', unit: '' }) // Changed 'sentiment' to 'unit'
     }
 });
+
+// Initialize state
+const search = ref(props.filters?.search || '');
+const unitFilter = ref(props.filters?.unit || '');
+const isRefreshing = ref(false);
+
+// --- SEARCH & FILTER LOGIC ---
+const performSearch = debounce(() => {
+    router.get(window.location.pathname, { 
+        search: search.value, 
+        unit: unitFilter.value // Send 'unit' to backend
+    }, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+        only: ['feedback', 'stats']
+    });
+}, 300);
+
+watch(search, () => performSearch());
+watch(unitFilter, () => performSearch());
 
 const form = useForm({});
 
 const submitClear = () => {
     if (confirm('⚠️ DANGER ZONE: ARE YOU SURE?\n\nThis will permanently delete ALL feedback data.\n\nThis action cannot be undone.')) {
         form.post('/clear-data', {
+            preserveScroll: true,
             onSuccess: () => alert('✅ System Cleaned: All data removed.'),
             onError: () => alert('❌ Error: Could not clear data.')
         });
     }
+};
+
+const refreshData = () => {
+    isRefreshing.value = true;
+    router.reload({ 
+        only: ['feedback', 'stats', 'topPerformers', 'needsImprovement'],
+        onFinish: () => { isRefreshing.value = false; }
+    });
 };
 </script>
 
@@ -38,7 +126,7 @@ const submitClear = () => {
 
     <DashboardLayout>
         
-        <div class="flex justify-between items-center mb-8">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
             <div>
                 <h2 class="text-2xl font-black text-[#0c4b33] uppercase tracking-wide">Executive Overview</h2>
                 <p class="text-sm text-gray-500 font-bold">Real-time Sentiment Analytics</p>
@@ -70,8 +158,7 @@ const submitClear = () => {
             </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12">
             <div class="bg-gradient-to-br from-[#0c4b33] to-[#1a6e4d] rounded-[35px] p-8 shadow-sm text-white border-b-8 border-yellow-400">
                  <div class="flex justify-between items-start mb-8">
                     <div>
@@ -80,16 +167,11 @@ const submitClear = () => {
                     </div>
                     <span class="text-2xl">🏆</span>
                  </div>
-                 
                  <div class="space-y-6">
-                    <div v-if="props.topPerformers.length === 0" class="text-center text-sm opacity-50 py-10">
-                        No data available yet.
-                    </div>
-                    <div v-else v-for="item in props.topPerformers" :key="item.rank" class="flex items-center justify-between group">
+                    <div v-if="props.topPerformers.length === 0" class="text-center text-sm opacity-50 py-10">No data available yet.</div>
+                    <div v-else v-for="(item, i) in props.topPerformers" :key="i" class="flex items-center justify-between group">
                         <div class="flex items-center gap-4">
-                            <div :class="item.color" class="w-8 h-8 rounded-full flex items-center justify-center text-[#0c4b33] font-black text-xs shadow-sm">
-                                {{ item.rank }}
-                            </div>
+                            <div class="bg-white/20 w-8 h-8 rounded-full flex items-center justify-center text-white font-black text-xs shadow-sm">{{ i + 1 }}</div>
                             <div>
                                 <div class="text-xs font-black uppercase tracking-tight">{{ item.unit }}</div>
                                 <div class="text-[10px] opacity-60">Highest Satisfaction Rating</div>
@@ -108,16 +190,11 @@ const submitClear = () => {
                     </div>
                     <span class="text-2xl">⚠️</span>
                  </div>
-                 
                  <div class="space-y-6">
-                    <div v-if="props.needsImprovement.length === 0" class="text-center text-gray-400 text-sm py-10">
-                        No critical issues found.
-                    </div>
-                    <div v-else v-for="item in props.needsImprovement" :key="item.rank" class="flex items-center justify-between group">
+                    <div v-if="props.needsImprovement.length === 0" class="text-center text-gray-400 text-sm py-10">No critical issues found.</div>
+                    <div v-else v-for="(item, i) in props.needsImprovement" :key="i" class="flex items-center justify-between group">
                         <div class="flex items-center gap-4">
-                            <div class="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 font-black text-xs">
-                                {{ item.rank }}
-                            </div>
+                            <div class="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 font-black text-xs">{{ i + 1 }}</div>
                             <div>
                                 <div class="text-xs font-black text-gray-700 uppercase tracking-tight">{{ item.unit }}</div>
                                 <div class="text-[10px] text-red-400 font-bold uppercase tracking-tighter italic">{{ item.issue }}</div>
@@ -132,48 +209,186 @@ const submitClear = () => {
             </div>
         </div>
 
-        <div class="bg-white rounded-[35px] shadow-sm border border-gray-50 overflow-hidden mb-8">
-            <div class="p-8 flex justify-between items-center">
-                <h3 class="font-black text-gray-400 text-[10px] uppercase tracking-[0.2em]">Recent Batch Analysis</h3>
-                <div class="flex items-center gap-2">
-                    <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                    <span class="text-[10px] font-bold text-gray-400 uppercase">System Active</span>
+        <div class="bg-white rounded-[25px] p-8 shadow-sm border border-gray-100 font-sans">
+            
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                <div>
+                    <h2 class="text-2xl font-black text-[#0c4b33] tracking-wide uppercase">Datasets</h2>
+                    <div class="flex items-center gap-3 mt-1">
+                        <p class="text-xs text-gray-500 font-bold">Processed review data.</p>
+                        <span class="flex items-center gap-1.5 px-2 py-0.5 rounded border border-blue-100 bg-blue-50 text-[10px] font-bold text-blue-600 uppercase tracking-wider">
+                            <span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
+                            Live Feed
+                        </span>
+                    </div>
+                </div>
+                
+                <button 
+                    @click="refreshData"
+                    :disabled="isRefreshing"
+                    class="flex items-center gap-2 px-4 py-2 bg-white hover:bg-gray-50 text-gray-600 text-xs font-bold rounded-xl border border-gray-200 transition shadow-sm disabled:opacity-50"
+                >
+                    <svg v-if="isRefreshing" class="animate-spin h-3.5 w-3.5 text-[#0c4b33]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    <span>{{ isRefreshing ? 'Refreshing...' : 'Refresh' }}</span>
+                </button>
+            </div>
+
+            <div class="flex flex-col md:flex-row gap-4 mb-4">
+                
+                <div class="relative flex-grow md:max-w-xs">
+                    <span class="absolute left-3 top-2.5 text-gray-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                    </span>
+                    <input 
+                        v-model="search"
+                        type="text" 
+                        placeholder="Search feedback..." 
+                        class="w-full bg-gray-50 border-none text-gray-700 text-sm pl-9 pr-4 py-2.5 rounded-xl focus:ring-1 focus:ring-[#0c4b33] placeholder-gray-400 font-medium transition-colors"
+                    >
+                </div>
+
+                <div class="relative w-full md:w-72">
+                    <select 
+                        v-model="unitFilter"
+                        class="appearance-none w-full bg-gray-50 border-none text-gray-700 text-xs font-bold py-2.5 pl-4 pr-10 rounded-xl focus:ring-1 focus:ring-[#0c4b33] cursor-pointer truncate"
+                    >
+                        <option value="">All Operating Units</option>
+                        <option v-for="unit in operatingUnits" :key="unit" :value="unit">
+                            {{ unit }}
+                        </option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </div>
+                </div>
+
+                <div class="flex items-center text-xs text-gray-400 font-mono ml-auto">
+                    Showing <span class="text-gray-800 font-bold mx-1">{{ props.feedback.total }}</span> records
                 </div>
             </div>
             
-            <div class="px-8 pb-8">
-                <div class="grid grid-cols-12 gap-4 bg-gray-50 text-gray-400 text-[9px] font-black uppercase tracking-widest py-3 px-6 rounded-xl mb-4 border border-gray-100">
-                    <div class="col-span-2">Operating Unit</div>
-                    <div class="col-span-5">Feedback Statement</div> 
-                    <div class="col-span-2 text-center">Sentiment</div>
-                    <div class="col-span-3 text-right">Detected Triggers</div> 
-                </div>
+            <div class="overflow-x-auto custom-scrollbar">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="text-gray-400 text-[10px] font-black uppercase tracking-widest border-b border-gray-100">
+                            <th class="py-4 pr-4 pl-4">Operating Unit</th>
+                            <th class="py-4 pr-4 w-1/3">Review</th>
+                            <th class="py-4 pr-4">Services</th>
+                            <!-- <th class="py-4 pr-4">Aspect</th> -->
+                            <th class="py-4 text-right pr-4">Sentiment</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-50 text-sm">
+                        <tr v-for="row in props.feedback.data" :key="row.id" class="group hover:bg-gray-50/80 transition-colors duration-150">
+                            
+                            <td class="py-4 pr-4 pl-4 align-top">
+                                <span class="text-gray-700 font-bold text-[11px] bg-gray-100 px-2 py-1 rounded border border-gray-200 whitespace-nowrap uppercase tracking-tight">
+                                    {{ row.operating_unit }}
+                                </span>
+                            </td>
 
-                <div v-if="props.recentFeedback.length === 0" class="text-center text-gray-400 text-sm py-10 italic">
-                    Waiting for new uploads...
-                </div>
+                            <td class="py-4 pr-4 text-gray-600 text-xs leading-relaxed group-hover:text-gray-900 transition-colors align-top">
+                                <div class="max-w-xs md:max-w-md line-clamp-2 italic">
+                                    "{{ row.feedback_text }}"
+                                </div>
+                            </td>
 
-                <div v-else v-for="(row, idx) in props.recentFeedback" :key="idx" 
-                class="grid grid-cols-12 gap-4 py-4 px-6 border-b border-gray-50 hover:bg-gray-50/50 transition items-center group">
-                    <div class="col-span-2 text-[10px] font-black text-gray-800 uppercase">{{ row.unit }}</div>
-                    <div class="col-span-5 text-sm text-gray-600 italic group-hover:text-gray-900 transition pr-4 truncate">"{{ row.text }}"</div>
-                    <div class="col-span-2 flex justify-center">
-                        <span class="px-4 py-1 rounded-full text-[9px] font-black uppercase tracking-tighter" :class="row.color">
-                            {{ row.sentiment }}
-                        </span>
-                    </div>
-                    <div class="col-span-3 text-right font-mono text-[10px] font-bold text-gray-400 group-hover:text-[#0c4b33] uppercase truncate">
-                        {{ row.keywords || row.conf || '---' }}
-                    </div>
+                            <td class="py-4 pr-4 align-top">
+                                <div class="text-[10px] text-gray-400 uppercase font-mono font-bold truncate max-w-[150px]" :title="row.services_availed">
+                                    {{ row.services_availed || '---' }}
+                                </div>
+                            </td>
+
+                            <!-- <td class="py-4 pr-4 align-top">
+                                <span class="inline-block text-purple-600 bg-purple-50 border border-purple-100 px-2 py-1 rounded text-[10px] font-bold font-mono lowercase whitespace-nowrap">
+                                    {{ row.topic || 'general' }}
+                                </span>
+                            </td> -->
+
+                            <td class="py-4 text-right align-top pr-4">
+                                <span 
+                                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide border"
+                                    :class="{
+                                        'bg-green-50 text-green-700 border-green-200': row.sentiment === 'Positive',
+                                        'bg-red-50 text-red-700 border-red-200': row.sentiment === 'Negative',
+                                        'bg-gray-50 text-gray-600 border-gray-200': row.sentiment === 'Neutral'
+                                    }"
+                                >
+                                    {{ row.sentiment }}
+                                </span>
+                            </td>
+
+                        </tr>
+                        
+                        <tr v-if="props.feedback.data.length === 0">
+                            <td colspan="5" class="py-12 text-center text-gray-400 italic">
+                                <div class="flex flex-col items-center justify-center gap-2">
+                                    <span class="text-2xl opacity-50">🔍</span>
+                                    <span>No data found matching your filters.</span>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="py-4 border-t border-gray-50 flex justify-between items-center mt-2">
+                <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wide">
+                    <span v-if="props.feedback.total > 0">
+                        Page {{ props.feedback.current_page }} of {{ props.feedback.last_page }}
+                    </span>
+                    <span v-else>No Pages</span>
+                </div>
+                <div class="flex gap-2">
+                    <Link 
+                        v-if="props.feedback.prev_page_url" 
+                        :href="props.feedback.prev_page_url"
+                        :preserve-scroll="true"
+                        :preserve-state="true"
+                        class="px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs font-bold hover:bg-[#0c4b33] hover:text-white hover:border-[#0c4b33] transition shadow-sm"
+                    >
+                        Previous
+                    </Link>
+                    <Link 
+                        v-if="props.feedback.next_page_url" 
+                        :href="props.feedback.next_page_url"
+                        :preserve-scroll="true"
+                        :preserve-state="true"
+                        class="px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs font-bold hover:bg-[#0c4b33] hover:text-white hover:border-[#0c4b33] transition shadow-sm"
+                    >
+                        Next
+                    </Link>
                 </div>
             </div>
+
         </div>
 
     </DashboardLayout>
 </template>
 
 <style scoped>
-.transition {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent; 
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #cbd5e1; 
+    border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8; 
 }
 </style>

@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Feedback;
+use App\Jobs\ProcessSentimentDataset; // Ensure this job exists in App\Jobs
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
@@ -17,7 +19,7 @@ class DashboardController extends Controller
         'general service', 'unknown', 'select office'
     ];
 
-    public function index()
+    public function index(Request $request)
     {
         // 1. GLOBAL STATS
         $stats = [
@@ -28,79 +30,106 @@ class DashboardController extends Controller
         ];
 
         // 2. EXCELLENCE AWARDEES (Top Offices by Positive Count)
-        // ✅ Column 'office' used here
         $topPerformers = Feedback::select('office')
             ->whereNotIn(DB::raw('LOWER(TRIM(office))'), $this->excludedUnits)
             ->selectRaw("COUNT(CASE WHEN sentiment = 'Positive' THEN 1 END) as positive_count")
             ->groupBy('office')
             ->orderByDesc('positive_count')
             ->limit(3)
-            ->get();
-
-        $formattedTop = $topPerformers->map(function ($item, $index) {
-            return [
-                'rank'  => $index + 1,
-                'unit'  => strtoupper($item->office),
-                'score' => $item->positive_count . ' Positive Reviews',
-                'color' => match($index) {
-                    0 => 'bg-yellow-400',
-                    1 => 'bg-gray-300',
-                    2 => 'bg-orange-400',
-                    default => 'bg-gray-100'
-                }
-            ];
-        })->values();
+            ->get()
+            ->map(function ($item, $index) {
+                return [
+                    'rank'  => $index + 1,
+                    'unit'  => strtoupper($item->office),
+                    'score' => $item->positive_count . ' Positive Reviews',
+                    'color' => match($index) {
+                        0 => 'bg-yellow-400',
+                        1 => 'bg-gray-300',
+                        2 => 'bg-orange-400',
+                        default => 'bg-gray-100'
+                    }
+                ];
+            });
 
         // 3. ACTION REQUIRED (Top Offices by Negative Count)
-        // ✅ Column 'office' used here
         $needsImprovement = Feedback::select('office')
             ->whereNotIn(DB::raw('LOWER(TRIM(office))'), $this->excludedUnits)
             ->selectRaw("COUNT(CASE WHEN sentiment = 'Negative' THEN 1 END) as negative_count")
             ->groupBy('office')
             ->orderByDesc('negative_count')
             ->limit(3)
-            ->get();
-
-        $formattedNeeds = $needsImprovement->map(function ($item, $index) {
-            return [
-                'rank'  => $index + 1,
-                'unit'  => strtoupper($item->office),
-                'issue' => 'Highest Complaint Volume', 
-                'score' => $item->negative_count . ' Negatives'
-            ];
-        })->values();
-
-        // 4. RECENT FEEDBACK
-        // ✅ Columns 'office' and 'comment' used here
-        $recentFeedback = Feedback::latest()
-            ->take(5)
             ->get()
-            ->map(function ($row) {
+            ->map(function ($item, $index) {
                 return [
-                    'unit'      => strtoupper($row->office ?? 'General'),
-                    'text'      => str()->limit($row->comment ?? '', 60), 
-                    'sentiment' => ucfirst($row->sentiment ?? 'Neutral'),
-                    'conf'      => ($row->confidence ?? 0) . '%',
-                    'color'     => match($row->sentiment) {
-                        'Positive' => 'text-green-600 bg-green-50',
-                        'Negative' => 'text-red-600 bg-red-50',
-                        default    => 'text-yellow-600 bg-yellow-50',
-                    }
+                    'rank'  => $index + 1,
+                    'unit'  => strtoupper($item->office),
+                    'issue' => 'Highest Complaint Volume', 
+                    'score' => $item->negative_count . ' Negatives'
                 ];
             });
 
+        // 4. FEEDBACK LIST (With Search & Operating Unit Filter)
+        $query = Feedback::query();
+
+        // Apply Search Filter
+        if ($request->search) {
+            $query->where(function($q) use ($request) {
+                $q->where('comment', 'like', '%'.$request->search.'%')
+                  ->orWhere('office', 'like', '%'.$request->search.'%');
+            });
+        }
+
+        // Apply Operating Unit Filter
+        if ($request->unit) {
+            $query->where('office', $request->unit);
+        }
+
+        $feedback = $query->orderBy('created_at', 'desc')
+            ->paginate(10)
+            ->withQueryString()
+            ->through(fn ($item) => [
+                'id'               => $item->id,
+                'operating_unit'   => strtoupper($item->office), 
+                'feedback_text'    => $item->comment, 
+                'services_availed' => $item->services_availed, 
+                'topic'            => $item->topic ?? 'General',
+                'sentiment'        => $item->sentiment,
+                'confidence'       => $item->confidence,
+            ]);
+
         return Inertia::render('Dashboard', [
             'stats'            => $stats,
-            'topPerformers'    => $formattedTop,
-            'needsImprovement' => $formattedNeeds,
-            'recentFeedback'   => $recentFeedback
+            'topPerformers'    => $topPerformers,
+            'needsImprovement' => $needsImprovement,
+            'feedback'         => $feedback,
+            'filters'          => $request->only(['search', 'unit']) 
         ]);
     }
 
-    public function allFeedback()
+    /**
+     * Restore CSV Upload functionality using Queue Jobs
+     */
+    public function addCsv(Request $request)
     {
-        // ✅ Standard Eloquent handles renamed columns automatically 
-        $feedback = Feedback::orderBy('created_at', 'desc')->paginate(15);
-        return Inertia::render('FeedbackList', ['feedback' => $feedback]);
+        $request->validate([
+            'csv_file' => 'required|file|mimes:csv,txt',
+        ]);
+
+        // Store the file temporarily in storage/app/temp
+        $path = $request->file('csv_file')->store('temp');
+
+        // Dispatch the background Job (triggers php artisan queue:work)
+        ProcessSentimentDataset::dispatch(storage_path('app/' . $path));
+
+        return back()->with('success', 'File uploaded! Processing in the background...');
+    }
+
+    /**
+     * Restore Clear All Data functionality
+     */
+    public function clearData()
+    {
+        Feedback::truncate();
+        return back();
     }
 }
