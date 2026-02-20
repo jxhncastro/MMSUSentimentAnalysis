@@ -6,42 +6,40 @@ use App\Http\Controllers\DatasetController;
 use App\Http\Controllers\SentimentController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\OperatingUnitController;
+use App\Http\Controllers\Auth\LoginController; 
 
-// --- 1. AUTHENTICATION ---
+// --- 1. PUBLIC ROUTES (No login required) ---
 Route::get('/', function () {
     return Inertia::render('Auth/Login');
 })->name('login');
 
-// --- 2. ANALYTICS DASHBOARDS ---
-// Main Overview Dashboard
-Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+Route::post('/login', [LoginController::class, 'store'])->name('login.store');
 
-// ✅ FIXED: Points to OperatingUnitController to load dynamic charts and thematic summaries
-Route::get('/operating-units', [OperatingUnitController::class, 'index'])->name('operating-units');
 
-// --- 3. DATA MANAGEMENT ---
-// View for the Upload Page
-Route::get('/add-csv', function () {
-    return Inertia::render('AddCsv');
-})->name('add-csv');
+// --- 2. PROTECTED ROUTES (Login required) ---
+// Everything inside this group requires the user to have the 'authenticated' session
+Route::middleware(['custom.auth'])->group(function () {
 
-// Handles the actual File Upload
-Route::post('/dataset/upload', [DatasetController::class, 'upload'])->name('dataset.upload');
+    Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
+    
+    // Analytics Dashboards
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/operating-units', [OperatingUnitController::class, 'index'])->name('operating-units');
 
-// Handles the progress bar polling for background processing
-Route::get('/api/analysis-status', [DatasetController::class, 'getStatus'])->name('api.status');
+    // Data Management
+    Route::get('/add-csv', function () {
+        return Inertia::render('AddCsv');
+    })->name('add-csv');
+    Route::post('/dataset/upload', [DatasetController::class, 'upload'])->name('dataset.upload');
+    Route::get('/api/analysis-status', [DatasetController::class, 'getStatus'])->name('api.status');
+    Route::post('/clear-data', [SentimentController::class, 'clearData'])->name('data.clear');
 
-// Handles clearing all feedback from the database
-Route::post('/clear-data', [SentimentController::class, 'clearData'])->name('data.clear');
+    // AI Testing
+    Route::get('/test-ai', function () {
+        return Inertia::render('TestAI');
+    })->name('test-ai');
+    Route::post('/ai/analyze', [SentimentController::class, 'analyze'])->name('ai.analyze');
 
-// --- 4. AI TESTING ---
-Route::get('/test-ai', function () {
-    return Inertia::render('TestAI');
-})->name('test-ai');
-
-// Handles the single-text analysis for the AI Tester
-Route::post('/ai/analyze', [SentimentController::class, 'analyze'])->name('ai.analyze');
-
-// --- 5. UTILITY ---
-// Optional: If you still need a flat list of all feedback
-Route::get('/all-feedback', [DashboardController::class, 'allFeedback'])->name('feedback.index');
+    // Utility
+    Route::get('/all-feedback', [DashboardController::class, 'allFeedback'])->name('feedback.index');
+});

@@ -175,7 +175,7 @@ const refreshData = () => {
             <div class="transition-all duration-300 rounded-[25px] p-6 shadow-sm flex flex-col justify-between h-32 hover:scale-105 hover:shadow-md cursor-default bg-[#0c4b33] text-white">
                 <div class="flex justify-between items-start">
                     <div class="text-[9px] opacity-80 uppercase font-black tracking-wider leading-tight text-green-100">Positive</div>
-                    <span class="text-sm opacity-80"></span>
+                    <span class="text-sm opacity-80">   </span>
                 </div>
                 <div class="text-3xl font-black">{{ formatNum(props.stats.positive) }}</div>
             </div>
