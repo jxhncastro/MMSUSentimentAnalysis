@@ -42,7 +42,7 @@ const analyzeSentiment = async () => {
 
     } catch (error) {
         console.error("Connection Error:", error);
-        alert("Could not connect to the Sentiment Engine.\n\n1. Check if the Colab Script is running.\n2. Check if AI_MODEL_URL in .env is correct.");
+        alert("Could not connect to the Sentiment Engine.\n\n1. Check if your local Python AI (Uvicorn) is running on port 5000.\n2. Check if AI_MODEL_URL in .env is set to http://127.0.0.1:5000.");
     } finally {
         loading.value = false;
     }

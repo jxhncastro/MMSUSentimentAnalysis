@@ -25,52 +25,247 @@ const props = defineProps({
 
 // --- 1. OPERATING UNITS DATA ---
 const unitData = {
-    "Accounting Office": ["Signing of Clearance of Students", "Certification of Net take home pay", "Signing of clearance of employees"],
-    "Administrative Service Division ": ["Issuance of Certificate of Appearance", "Issuance of an Affidavit of Loss (University/Library Identification Card)", "Issuance of Certification of No Pending Case", "Confirmation of GSIS Loan", "Online Application of Bond", "Authentication/Certification of Document/s"],
-    "Alumni Relations Office": ["Signing of University Clearance", "Application for Alumni Identification Card", "Issuance of Alumni Identification Card"],
-    "Auxillary Directorate": ["Satellite Canteen Services", "Food Catering Services", "Reservation of Facilities", "Reservation of Accommodation", "Renting Out of Academic Caps and Gowns", "Marketing Center Services"],
-    "Budget Management Section": ["Process Obligation/Budget Utilization"],
-    "CAFSD": ["Admission and Enrolment", "Processing of Scholarship", "Leave of Absence (LOA)", "Completion/Removal of Grades", "Reading Center Services", "Signing of Student Clearance"],
-    "CAS": ["Admission and Enrolment", "Laboratory Service (Biology, Chemistry, Physics)", "Library Service (Reading Center)", "Resolution of Student Grievances", "Signing of Student Clearance"],
-    "CASAT": ["Cash Management Services", "Library Services", "Health & Wellness Services", "Center for Diver Training Services", "Signing of Student Clearance"],
-    "CBEA": ["Admission and Registration", "Online Adding/Changing/Dropping of Subjects", "Online Application for Graduation", "Reading Center Services", "Signing of Student Clearance"],
-    "CCIS": ["Admission and Enrolment", "Application for Dropping/Changing of Subjects", "Library Service (Reading Center)", "Signing of Student Clearance"],
-    "CHS": ["Admission and Registration", "First Issuance of TOR", "First Issuance of Diploma", "Processing of Application for Scholarships", "Signing of Student Clearance"],
-    "CIT": ["Admission and Registration", "Issuance of Identification Card (ID)", "Authentication of Documents", "Cashier’s Office Services", "Signing of Student Clearance"],
-    "COE": ["Admission and Enrolment", "Course Shifting/Transfer", "Laboratory Services", "Guidance - Issuance of CGMC", "Extension Services", "Signing of Student Clearance"],
-    "COL": ["Admission and Enrolment for Student Applicant", "Admission for Returning Students", "Dropping/Changing of Subjects", "Signing of Student Clearance"],
-    "COM": ["Application for Doctor of Medicine Program", "Admission of Accepted Freshmen", "Admission for Returning Students", "Signing of Student Clearance"],
-    "CTE": ["Registrar’s Office: Admission", "Library Services", "Recognition of Student Organizations", "Cash Management Services", "Signing of Student Clearance"],
-    "CVM": ["Admission and Enrolment", "Processing of Scholarship", "Use of Laboratory Facilities/Services", "Filing of Complaints", "Signing of Student Clearance"],
-    "Cash Management": ["Check/Advice to Debit Account Disbursement", "Collection of Payments", "Cash Disbursement"],
-    "Distance Learning Office": ["Answering of Inquiries", "Request for Training on ODEL"],
-    "ETEEAP": ["Admission and Registration of ETEEAP Students"],
-    "Extension Directorate": ["Seedstock Dispersal Project", "Requested Trainings", "Information Technology Caravan"],
-    "General Services Directorate": ["Utilization of University Vehicles", "Repair and Maintenance of Buildings", "Utilization of Sound System"],
-    "Graduate School": ["Admission of New Students", "Presentation of Thesis/Dissertation Proposal", "Conduct of Comprehensive Examination"],
-    "Health and Wellness Services": ["Medical and Dental Examination", "Medical and Dental Consultation", "Annual Medical Check Up"],
-    "Human Resources Management Office ": ["Application for Employment", "Issuance of Service Record", "Application for Leave"],
-    "Information Technology Center": ["Technical Services and Maintenance", "ICT Equipment Repair and Maintenance"],
-    "Innovation and Technology Directorate (former S&T Park)": ["Food Processing Facilities", "Intellectual Property Management", "Technology Business Incubation"],
-    "Instructional Materials Development Office": ["Instructional Materials Development"],
-    "Internal Audit Services": ["Request for Audit Reports"],
-    "Internationalization, Linkages, and Partnership Directorate": ["Student Internship Abroad Program", "Request for the Forging of Partnerships"],
-    "NBERIC": ["Analytical Services", "Reservation of Facilities"],
-    "OJT - SIPP Practicum Coordinating Office": ["Internship Deployment Process"],
-    "Office of the University and Board Secretary": ["Issuance of AdCo/BOR Resolutions", "Issuance of Memorandum/Special Order"],
-    "PPDO": ["Project Management", "Preparation of Program of Works"],
-    "Planning Office": ["Provision of Institutional Data"],
-    "Procurement Division": ["Procurement through Competitive Bidding", "Sale of Bidding Documents"],
-    "Quality Assurance": ["Providing Accreditation Status", "Mock Accreditation of Academic Programs"],
-    "Records and Archives Management Office": ["Issuance of Service Records", "Certification of Machine Copies"],
-    "Research Directorate": ["Laboratory Animal Care Facility", "Statistical Advising", "Provision of Weather/Soil Data"],
-    "Strategic Communication  Office": ["Documentation of Events", "Information Services", "Livestreaming of University events"],
-    "Students and Affairs Services Office": ["Issuance of CGMC", "Application for Tertiary Education Subsidy (TES)", "Referral Counselling"],
-    "Supply and Property Management Office": ["Issuance of Supplies and Equipment", "Signing of University Clearance"],
-    "URERB": ["Initial Submission of Research Protocols", "Post-approval Submissions"],
-    "University Library System": ["Charging/Borrowing of Information Resources", "Discharging/Returning Resources"],
-    "University Registrar's Office": ["Admission and Registration", "Issuance of TOR/Diploma", "Authentication of Documents", "Issuance of ID", "Leave of Absence (LOA)"]
+    "Accounting Office": ["Certification of Net take home pay"],
+    "Administrative Service Division": [
+        "Authentication/Certification of Document/s",
+        "Issuance of Certification of No Pending Case",
+        "Issuance of an Affidavit of Loss (University/Library Identification Card)",
+        "Confirmation of Government Service Insurance System (GSIS) Loan",
+        "Online Application of Bond"
+    ],
+    "Alumni Relations Office": [
+        "Signing of University Clearance",
+        "Application for Alumni Identification Card",
+        "Issuance of Alumni Identification Card"
+    ],
+    "Auxillary Directorate": ["Food Catering Services"],
+    "Business Directorate": ["Satellite Canteen Services", "Acomodation"],
+    "CAFSD": [
+        "Processing College Clearance",
+        "Processing of Application for Scholarship",
+        "Reading Center Services",
+        "Admission and Enrolment for Incoming Freshmen",
+        "Securing Clearance Form",
+        "Use of Laboratory Facilities/Services",
+        "Enrolment for Transferees",
+        "Application for Dropping/Changing of Subjects",
+        "Completion/Removal of Grades"
+    ],
+    "CAS": [
+        "Signing of Student Clearance",
+        "Library Service (Reading Center)",
+        "Borrowing of Equipment",
+        "Laboratory Service (Biology, Chemistry, Physics)",
+        "Admission and Enrolment for Incoming Freshmen",
+        "Enrolment for Upper Classmen"
+    ],
+    "CASAT": [
+        "Cash Management Services - Collection of Payments",
+        "Medical and Dental Examination for Current Employees",
+        "Health & Wellness Services: Medical and Dental Examination",
+        "Library Services: Charging/Borrowing and Discharging/Returning",
+        "Extension Services"
+    ],
+    "CBEA": [
+        "Admission and Registration (Upper Classmen)",
+        "Admission and Registration (Freshmen)",
+        "Online Adding/Changing/Dropping of Subjects",
+        "Securing and Processing Clearance Form",
+        "Reading Center Services",
+        "Online Application for Graduation"
+    ],
+    "CCIS": [
+        "Signing of Student Clearance",
+        "Application for Dropping/Changing of Subjects"
+    ],
+    "CHS": [
+        "Admission and Registration (Freshmen)",
+        "Admission and Registration (Upper Classmen)",
+        "Processing of Application for Scholarships",
+        "Signing of Student Clearance",
+        "Online Adding/Changing/Dropping of Subjects",
+        "Online Application for Graduation",
+        "First Issuance of Transcript of Records (TOR)",
+        "First Issuance of Diploma"
+    ],
+    "CIT": [
+        "Admission and Registration (Freshmen)",
+        "Authentication of Documents",
+        "Admission and Registration (Upper Classmen)",
+        "Re-issuance of Transcript of Records (TOR)",
+        "Cash Disbursement"
+    ],
+    "COE": [
+        "Library Services (Reading Center)",
+        "Admission and Enrolment (Freshmen)",
+        "Conduct of Undergraduate Theses",
+        "On-the-Job Training",
+        "Laboratory Services",
+        "Admission and Enrolment (Upper classmen)",
+        "Course Shifting/Transfer",
+        "Completion/Removal of Grades"
+    ],
+    "COM": ["Application for Doctor of Medicine Program"],
+    "CTE": [
+        "Admission and Registration (Freshman)",
+        "Admission and Registration (Upper Classman)",
+        "Issuance of Certification for General Weighted Average (GWA)",
+        "Issuance of Identification Card (ID)",
+        "Release of Clearance",
+        "Incoming/Outgoing Communication",
+        "Authentication of Documents",
+        "Adding/Changing/Dropping of Subject (Online)",
+        "First Issuance of Transcript of Records (TOR)",
+        "Application for Graduation (Online)",
+        "Recognition of Student Organizations"
+    ],
+    "CVM": [
+        "Admission and Enrolment for Incoming Freshmen",
+        "Processing of Application for Scholarship"
+    ],
+    "Cash Management": [
+        "Check/Advice to Debit Account Disbursement",
+        "Collection of Payments"
+    ],
+    "Extension Directorate": ["Information Technology Caravan"],
+    "General Services Directorate": [
+        "Utilization of University Vehicles and Heavy Equipment/Tractor"
+    ],
+    "Graduate School": [
+        "Admission of New Students",
+        "Enrolment of New and Returning Students",
+        "Conduct of Mid-Term and Final Examinations",
+        "Final Oral Examination/Defense"
+    ],
+    "Health and Wellness Services": [
+        "Medical and Dental Consultation of Students and Employees",
+        "Medical and Dental Examination of Freshmen and Transferees",
+        "OJT, Internship, Practicum, Apprenticeship of Students"
+    ],
+    "Human Resources Management Office": [
+        "Application for Employment",
+        "Issuance of Service Record",
+        "Application for Leave"
+    ],
+    "Information Technology Center": [
+        "Technical Services and Maintenance – Technical Assistance",
+        "Technical Services and Maintenance - ICT Equipment Repair"
+    ],
+    "Innovation and Technology Directorate (former S&T Park)": [
+        "Request for Training",
+        "Technology Business Incubation"
+    ],
+    "Planning Office": ["Provision of Complex Institutional Data"],
+    "Quality Assurance": [
+        "Providing Accreditation/Certification/Assessment Status",
+        "Conducting Mock Accreditation of Academic Programs"
+    ],
+    "Records and Archives Management Office": [
+        "Registration of Administrative Documents",
+        "Certification of Machine Copies of Documents",
+        "Registration of Financial Documents"
+    ],
+    "Research Directorate": [
+        "Provision of Data (ex. Weather Data, Soil Data)",
+        "Statistical Advising",
+        "Use of Facilities and Technical Assistance"
+    ],
+    "Strategic Communication Office": [
+        "Designing of creative works",
+        "Documentation of Events",
+        "Request for a news coverage"
+    ],
+    "Students and Affairs Services Office": [
+        "Issuance of Certificate of Good Moral Character",
+        "Application for Tertiary Education Subsidy (TES) 2",
+        "Claim for Academic Scholarship Stipend"
+    ],
+    "Supply and Property Management Office": [
+        "Issuance of Supplies, Materials and Equipment"
+    ],
+    "URERB": [
+        "Initial Submission of Research Protocols for Review",
+        "Post-approval Submissions"
+    ],
+    "University Library System": [
+        "Charging/Borrowing of Information Resources",
+        "Discharging/Returning of Information Resources"
+    ],
+    "University Registrar's Office": [
+        "Admission and Registration (Freshmen)",
+        "First Issuance of Transcript of Records (TOR)",
+        "First Issuance of Diploma",
+        "Authentication of Documents",
+        "Issuance of Identification Card (ID)",
+        "Online Application for Graduation"
+    ]
 };
+// const unitData = {
+//     "Accounting Office": ["Signing of Clearance of Students", "Certification of Net take home pay", "Signing of clearance of employees"],
+//     "Administrative Service Division ": ["Issuance of Certificate of Appearance", "Issuance of an Affidavit of Loss (University/Library Identification Card)", "Issuance of Certification of No Pending Case", "Confirmation of GSIS Loan", "Online Application of Bond", "Authentication/Certification of Document/s"],
+//     "Alumni Relations Office": ["Signing of University Clearance", "Application for Alumni Identification Card", "Issuance of Alumni Identification Card"],
+//     "Auxillary Directorate": ["Satellite Canteen Services", "Food Catering Services", "Reservation of Facilities", "Reservation of Accommodation", "Renting Out of Academic Caps and Gowns", "Marketing Center Services"],
+//     "Budget Management Section": ["Process Obligation/Budget Utilization"],
+//     "CAFSD": ["Admission and Enrolment", "Processing of Scholarship", "Leave of Absence (LOA)", "Completion/Removal of Grades", "Reading Center Services", "Signing of Student Clearance"],
+//     "CAS": ["Admission and Enrolment", "Laboratory Service (Biology, Chemistry, Physics)", "Library Service (Reading Center)", "Resolution of Student Grievances", "Signing of Student Clearance"],
+//     "CASAT": ["Cash Management Services", "Library Services", "Health & Wellness Services", "Center for Diver Training Services", "Signing of Student Clearance"],
+//     "CBEA": ["Admission and Registration", "Online Adding/Changing/Dropping of Subjects", "Online Application for Graduation", "Reading Center Services", "Signing of Student Clearance"],
+//     "CCIS": ["Admission and Enrolment", "Application for Dropping/Changing of Subjects", "Library Service (Reading Center)", "Signing of Student Clearance"],
+//     "CHS": ["Admission and Registration", "First Issuance of TOR", "First Issuance of Diploma", "Processing of Application for Scholarships", "Signing of Student Clearance"],
+//     "CIT": ["Admission and Registration", "Issuance of Identification Card (ID)", "Authentication of Documents", "Cashier’s Office Services", "Signing of Student Clearance"],
+//     "COE": ["Admission and Enrolment", "Course Shifting/Transfer", "Laboratory Services", "Guidance - Issuance of CGMC", "Extension Services", "Signing of Student Clearance"],
+//     "COL": ["Admission and Enrolment for Student Applicant", "Admission for Returning Students", "Dropping/Changing of Subjects", "Signing of Student Clearance"],
+//     "COM": ["Application for Doctor of Medicine Program", "Admission of Accepted Freshmen", "Admission for Returning Students", "Signing of Student Clearance"],
+//     // "CTE": ["Registrar's Office: Admission", "Library Services", "Recognition of Student Organizations", "Cash Management Services", "Signing of Student Clearance"],
+//     "CTE": [
+//         "Admission and Registration (Freshman)",
+//         "Admission and Registration (Upper Classman)",
+//         "Admission and Registration (Transferee with 30 credited units)",
+//         "Adding/Changing/Dropping of Subject (Online)",
+//         "Issuance of Identification Card (ID)",
+//         "Re-issuance of Identification Card (ID)",
+//         "Authentication of Documents",
+//         "Release of Clearance",
+//         "Collection of Payments",
+//         "Cash Disbursement",
+//         "Incoming/Outgoing Communication",
+//         "First Issuance of Transcript of Records (TOR)",
+//         "Re-issuance of Transcript of Records (TOR)",
+//         "Issuance of Certification for General Weighted Average (GWA)",
+//         "Application for Graduation (Online)",
+//         "Recognition of Student Organizations",
+//         "Facilitate Approval of the Conduct of Student Activities"
+//     ],
+//     "CVM": ["Admission and Enrolment", "Processing of Scholarship", "Use of Laboratory Facilities/Services", "Filing of Complaints", "Signing of Student Clearance"],
+//     "Cash Management": ["Check/Advice to Debit Account Disbursement", "Collection of Payments", "Cash Disbursement"],
+//     "Distance Learning Office": ["Answering of Inquiries", "Request for Training on ODEL"],
+//     "ETEEAP": ["Admission and Registration of ETEEAP Students"],
+//     "Extension Directorate": ["Seedstock Dispersal Project", "Requested Trainings", "Information Technology Caravan"],
+//     "General Services Directorate": ["Utilization of University Vehicles", "Repair and Maintenance of Buildings", "Utilization of Sound System"],
+//     "Graduate School": ["Admission of New Students", "Presentation of Thesis/Dissertation Proposal", "Conduct of Comprehensive Examination"],
+//     "Health and Wellness Services": ["Medical and Dental Examination", "Medical and Dental Consultation", "Annual Medical Check Up"],
+//     "Human Resources Management Office ": ["Application for Employment", "Issuance of Service Record", "Application for Leave"],
+//     "Information Technology Center": ["Technical Services and Maintenance", "ICT Equipment Repair and Maintenance"],
+//     "Innovation and Technology Directorate (former S&T Park)": ["Food Processing Facilities", "Intellectual Property Management", "Technology Business Incubation"],
+//     "Instructional Materials Development Office": ["Instructional Materials Development"],
+//     "Internal Audit Services": ["Request for Audit Reports"],
+//     "Internationalization, Linkages, and Partnership Directorate": ["Student Internship Abroad Program", "Request for the Forging of Partnerships"],
+//     "NBERIC": ["Analytical Services", "Reservation of Facilities"],
+//     "OJT - SIPP Practicum Coordinating Office": ["Internship Deployment Process"],
+//     "Office of the University and Board Secretary": ["Issuance of AdCo/BOR Resolutions", "Issuance of Memorandum/Special Order"],
+//     "PPDO": ["Project Management", "Preparation of Program of Works"],
+//     "Planning Office": ["Provision of Institutional Data"],
+//     "Procurement Division": ["Procurement through Competitive Bidding", "Sale of Bidding Documents"],
+//     "Quality Assurance": ["Providing Accreditation Status", "Mock Accreditation of Academic Programs"],
+//     "Records and Archives Management Office": ["Issuance of Service Records", "Certification of Machine Copies"],
+//     "Research Directorate": ["Laboratory Animal Care Facility", "Statistical Advising", "Provision of Weather/Soil Data"],
+//     "Strategic Communication  Office": ["Documentation of Events", "Information Services", "Livestreaming of University events"],
+//     "Students and Affairs Services Office": ["Issuance of CGMC", "Application for Tertiary Education Subsidy (TES)", "Referral Counselling"],
+//     "Supply and Property Management Office": ["Issuance of Supplies and Equipment", "Signing of University Clearance"],
+//     "URERB": ["Initial Submission of Research Protocols", "Post-approval Submissions"],
+//     "University Library System": ["Charging/Borrowing of Information Resources", "Discharging/Returning Resources"],
+//     "University Registrar's Office": ["Admission and Registration", "Issuance of TOR/Diploma", "Authentication of Documents", "Issuance of ID", "Leave of Absence (LOA)"]
+// };
 
 // --- STATE & COMPUTED ---
 const operatingUnits = Object.keys(unitData).sort();
@@ -203,20 +398,22 @@ watch(() => props.filters, (newFilters) => {
                 <div v-if="selectedUnit" class="flex flex-col gap-2">
                     <div class="flex justify-between items-center px-2">
                         <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Filter by Service</h3>
-                        <span class="text-[10px] font-bold text-[#0c4b33] uppercase">{{ selectedService }}</span>
+                        <span class="text-[10px] font-bold text-[#0c4b33] uppercase bg-white px-2 py-1 rounded-md shadow-sm border border-gray-100">
+                            {{ selectedService }}
+                        </span>
                     </div>
                     
-                    <div class="bg-gradient-to-r from-[#0c4b33] to-[#1a6e4d] rounded-2xl py-4 px-6 shadow-lg overflow-x-auto no-scrollbar border-b-4 border-yellow-400">
-                        <div class="flex gap-3">
+                    <div class="bg-gradient-to-r from-[#0c4b33] to-[#1a6e4d] rounded-2xl p-5 shadow-lg border-b-4 border-yellow-400 max-h-64 overflow-y-auto custom-scrollbar">
+                        <div class="flex flex-wrap gap-2 justify-start items-center">
                             <button 
                                 v-for="service in services" 
                                 :key="service" 
                                 @click="selectService(service)"
-                                class="whitespace-nowrap px-4 py-2 rounded-full text-xs font-bold transition-all duration-300 border focus:outline-none"
+                                class="whitespace-nowrap px-4 py-2 rounded-full text-[10px] font-bold transition-all duration-300 border focus:outline-none shadow-sm"
                                 :class="[
                                     selectedService === service 
-                                    ? 'bg-yellow-400 text-[#0c4b33] border-yellow-400 shadow-md scale-105' 
-                                    : 'bg-white/10 text-white border-white/20 hover:bg-white/20 hover:border-white/40'
+                                    ? 'bg-yellow-400 text-[#0c4b33] border-yellow-400 shadow-md scale-105 z-10' 
+                                    : 'bg-white/10 text-white border-white/20 hover:bg-white/20 hover:border-white/40 hover:scale-105'
                                 ]"
                             >
                                 {{ service }}
@@ -226,7 +423,6 @@ watch(() => props.filters, (newFilters) => {
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    
                     <div class="bg-white rounded-[35px] p-8 shadow-sm min-h-[350px] flex flex-col items-center justify-center relative border border-gray-100 hover:shadow-md transition-shadow">
                         <h3 class="absolute top-8 left-0 right-0 text-center font-bold text-gray-400 text-[10px] uppercase tracking-[0.2em]">
                             SENTIMENT RATIO
@@ -257,7 +453,6 @@ watch(() => props.filters, (newFilters) => {
                     </div>
 
                     <div class="bg-white rounded-[35px] p-8 shadow-sm min-h-[350px] flex flex-col relative border border-gray-100 overflow-y-auto custom-scrollbar hover:shadow-md transition-shadow">
-                        
                         <div v-if="selectedUnit" class="flex-1 flex flex-col">
                             <h3 class="text-center font-bold text-gray-400 text-[10px] uppercase tracking-[0.2em] mb-6 sticky top-0 bg-white z-10 pb-2">
                                 SENTIMENT DRIVERS (TOPICS)
@@ -403,21 +598,28 @@ watch(() => props.filters, (newFilters) => {
 </template>
 
 <style scoped>
-.no-scrollbar::-webkit-scrollbar {
-    display: none;
-}
-.no-scrollbar {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
-}
+/* 🟢 NEW SCROLLBAR STYLING FOR WRAPPED GRID */
 .custom-scrollbar::-webkit-scrollbar { 
     width: 6px; 
 }
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+}
 .custom-scrollbar::-webkit-scrollbar-thumb { 
-    background: #e5e7eb; 
+    background: rgba(255, 255, 255, 0.3); 
     border-radius: 10px; 
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #d1d5db;
+    background: rgba(255, 255, 255, 0.5);
+}
+
+/* TABLE SCROLLBAR */
+.overflow-x-auto::-webkit-scrollbar {
+    height: 4px;
+}
+.overflow-x-auto::-webkit-scrollbar-thumb {
+    background: #e5e7eb;
+    border-radius: 10px;
 }
 </style>

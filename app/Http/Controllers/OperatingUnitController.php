@@ -17,6 +17,7 @@ class OperatingUnitController extends Controller
 
     public function index(Request $request)
     {
+        
         // 1. Base Query
         $query = Feedback::query();
 
@@ -26,56 +27,57 @@ class OperatingUnitController extends Controller
         }
 
         // 3. Filter by Specific Service (using 'services_availed' column)
-        // We use LIKE because one feedback row might contain multiple services
         if ($request->filled('service') && $request->service !== 'All Services') {
             $query->where('services_availed', 'LIKE', '%' . trim($request->service) . '%');
         }
 
         // --- CHART 1: OVERALL SATISFACTION (Donut) ---
+        // 🟢 FIX: We now TRIM and LOWER the sentiment in SQL to ignore hidden spaces/carriage returns
         $rawSentiment = (clone $query)
-            ->select('sentiment', DB::raw('count(*) as count'))
-            ->groupBy('sentiment')
-            ->pluck('count', 'sentiment')
+            ->selectRaw('LOWER(TRIM(sentiment)) as sentiment_key, count(*) as count')
+            ->groupBy('sentiment_key')
+            ->pluck('count', 'sentiment_key')
             ->toArray();
 
+        // 🟢 FIX: Safely map the cleaned keys
         $overallSentiment = [
-            'Positive' => ($rawSentiment['Positive'] ?? 0) + ($rawSentiment['positive'] ?? 0) + ($rawSentiment['POSITIVE'] ?? 0),
-            'Negative' => ($rawSentiment['Negative'] ?? 0) + ($rawSentiment['negative'] ?? 0) + ($rawSentiment['NEGATIVE'] ?? 0),
-            'Neutral'  => ($rawSentiment['Neutral']  ?? 0) + ($rawSentiment['neutral']  ?? 0) + ($rawSentiment['NEUTRAL'] ?? 0),
+            'Positive' => $rawSentiment['positive'] ?? 0,
+            'Negative' => $rawSentiment['negative'] ?? 0,
+            'Neutral'  => $rawSentiment['neutral']  ?? 0,
         ];
 
         // --- CHART 2: SENTIMENT BY TOPIC (Stacked Bar) ---
         $sentimentByTopic = (clone $query)
-            ->select('topic', 'sentiment', DB::raw('count(*) as count'))
+            ->selectRaw('topic, LOWER(TRIM(sentiment)) as sentiment_key, count(*) as count')
             ->whereNotNull('topic')
             ->where('topic', '!=', 'General')
-            ->groupBy('topic', 'sentiment')
+            ->groupBy('topic', 'sentiment_key')
             ->get()
             ->groupBy('topic')
             ->map(function ($group) {
                 return [
-                    'positive' => $group->whereIn('sentiment', ['Positive', 'positive', 'POSITIVE'])->sum('count'),
-                    'negative' => $group->whereIn('sentiment', ['Negative', 'negative', 'NEGATIVE'])->sum('count'),
-                    'neutral'  => $group->whereIn('sentiment', ['Neutral', 'neutral', 'NEUTRAL'])->sum('count'),
+                    'positive' => $group->where('sentiment_key', 'positive')->sum('count'),
+                    'negative' => $group->where('sentiment_key', 'negative')->sum('count'),
+                    'neutral'  => $group->where('sentiment_key', 'neutral')->sum('count'),
                 ];
             })->toArray();
 
-        // --- CHART 3 & 4: GLOBAL TOP LISTS (Only shown when no unit is selected) ---
+        // --- CHART 3 & 4: GLOBAL TOP LISTS ---
         $topNegative = [];
         $topPositive = [];
         
         if (!$request->filled('unit')) {
-            $topNegative = Feedback::whereIn('sentiment', ['Negative', 'negative', 'NEGATIVE'])
+            $topNegative = Feedback::whereRaw("LOWER(TRIM(sentiment)) = 'negative'")
                 ->whereNotIn(DB::raw('LOWER(TRIM(office))'), $this->excludedUnits)
-                ->select('office', DB::raw('count(*) as count'))
+                ->selectRaw('office, count(*) as count')
                 ->groupBy('office')
                 ->orderByDesc('count')
                 ->limit(5)
                 ->get();
 
-            $topPositive = Feedback::whereIn('sentiment', ['Positive', 'positive', 'POSITIVE'])
+            $topPositive = Feedback::whereRaw("LOWER(TRIM(sentiment)) = 'positive'")
                 ->whereNotIn(DB::raw('LOWER(TRIM(office))'), $this->excludedUnits)
-                ->select('office', DB::raw('count(*) as count'))
+                ->selectRaw('office, count(*) as count')
                 ->groupBy('office')
                 ->orderByDesc('count')
                 ->limit(5)
@@ -88,7 +90,8 @@ class OperatingUnitController extends Controller
             ->take(10)
             ->get()
             ->map(function($item) {
-                $item->sentiment = ucfirst(strtolower($item->sentiment)); 
+                // 🟢 FIX: Also trim the display text so the Vue table renders the correct color tags
+                $item->sentiment = ucfirst(strtolower(trim($item->sentiment))); 
                 return $item;
             });
 
@@ -101,7 +104,6 @@ class OperatingUnitController extends Controller
                 'top_positive'        => $topPositive,
             ],
             'recent_feedback' => $recentFeedback,
-            // Use filled() check to ensure we only pass back valid filters
             'filters' => [
                 'unit' => $request->unit ?? "",
                 'service' => $request->service ?? "All Services"
