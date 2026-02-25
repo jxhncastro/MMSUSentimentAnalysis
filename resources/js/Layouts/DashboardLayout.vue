@@ -111,11 +111,8 @@ const toggleSidebar = () => {
 
             <div class="mt-auto pt-6 border-t border-white/10 text-center relative z-10">
                  <div class="flex items-center gap-3 px-2">
-                     <div class="w-10 h-10 rounded-full bg-white/20 border border-white/30 flex items-center justify-center shrink-0 text-yellow-400 font-bold">
-                         JD
-                     </div>
                      <div class="text-left overflow-hidden min-w-0">
-                         <h3 class="font-bold text-white text-sm truncate">Juan Dela Cruz</h3>
+                         <h3 class="font-bold text-white text-sm truncate">MMSU Administrator</h3>
                          <p class="text-xs text-gray-400 truncate">Administrator</p>
                      </div>
                  </div>

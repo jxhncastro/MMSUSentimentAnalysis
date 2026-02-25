@@ -125,10 +125,17 @@ const maxTopicCount = computed(() => {
 
 // --- FILTER HANDLING ---
 const fetchFilteredData = debounce(() => {
-    router.get('/operating-units', { 
-        unit: selectedUnit.value,
-        service: selectedService.value !== "All Services" ? selectedService.value : null
-    }, {
+    // Dynamically build params so we don't send null/empty strings to the backend
+    let params = {};
+    if (selectedUnit.value) {
+        params.unit = selectedUnit.value;
+    }
+    if (selectedService.value && selectedService.value !== "All Services") {
+        params.service = selectedService.value;
+    }
+
+    // Use window.location.pathname so it always hits the correct route
+    router.get(window.location.pathname, params, {
         preserveState: true,
         preserveScroll: true,
         only: ['charts', 'recent_feedback', 'filters'],
@@ -137,10 +144,12 @@ const fetchFilteredData = debounce(() => {
     });
 }, 300);
 
-// Reset service to "All" when a new Unit is selected, then fetch
-watch(selectedUnit, () => {
-    selectedService.value = "All Services";
-    fetchFilteredData();
+// Watcher: Only reset and fetch if the Unit ACTUALLY changes
+watch(selectedUnit, (newVal, oldVal) => {
+    if (newVal !== oldVal) {
+        selectedService.value = "All Services";
+        fetchFilteredData();
+    }
 });
 
 // Fetch data when a specific service is clicked
@@ -150,6 +159,12 @@ const selectService = (service) => {
         fetchFilteredData();
     }
 };
+
+// Sync state if user uses browser Back/Forward buttons
+watch(() => props.filters, (newFilters) => {
+    selectedUnit.value = newFilters?.unit || "";
+    selectedService.value = newFilters?.service || "All Services";
+}, { deep: true });
 
 </script>
 

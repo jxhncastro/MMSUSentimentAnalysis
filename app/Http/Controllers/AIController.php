@@ -14,15 +14,13 @@ class AIController extends Controller
             'aspect' => 'nullable|string'
         ]);
 
-        // 🔴 UPDATE THIS URL whenever you restart Google Colab
-        $pythonUrl = 'https://tetragonal-tressie-unplundered.ngrok-free.dev/predict';
+        // 🟢 Automatically pulls the local URL from your .env file
+        $baseUrl = env('AI_MODEL_URL', 'http://127.0.0.1:5000');
+        $pythonUrl = rtrim($baseUrl, '/') . '/predict';
 
         try {
-            // We add 'ngrok-skip-browser-warning' header to bypass the Ngrok landing page
-            $response = Http::withHeaders([
-                'ngrok-skip-browser-warning' => '69420',
-            ])
-            ->timeout(60) // AI models can be slow, so we wait up to 60 seconds
+            // No more ngrok headers needed! Just a clean, fast local request.
+            $response = Http::timeout(60) // AI models can still take a few seconds
             ->post($pythonUrl, [
                 'text' => $request->comment,
                 'aspect' => $request->aspect ?? 'General'
@@ -38,10 +36,10 @@ class AIController extends Controller
             }
 
         } catch (\Exception $e) {
-            // This captures if the URL is wrong or Ngrok is offline
+            // Updated to reflect your new local setup instead of Colab
             return response()->json([
                 'error' => 'Connection Failed.',
-                'message' => 'Ensure Google Colab is running and the URL is correct.',
+                'message' => 'Ensure your local Python API (Uvicorn) is running on port 5000.',
                 'debug' => $e->getMessage()
             ], 500);
         }

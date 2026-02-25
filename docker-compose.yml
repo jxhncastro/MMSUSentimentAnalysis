@@ -1,0 +1,16 @@
+version: '3.8'
+services:
+  db:
+    image: mariadb:10.11
+    container_name: mmsu_mariadb
+    restart: always
+    environment:
+      MARIADB_ROOT_PASSWORD: root
+      MARIADB_DATABASE: mmsu_sentiment
+    ports:
+      - "3307:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+
+volumes:
+  mariadb_data:

@@ -9,9 +9,6 @@ use Inertia\Inertia;
 
 class OperatingUnitController extends Controller
 {
-    /**
-     * Strict list of survey noise to exclude from rankings.
-     */
     protected $excludedUnits = [
         'strongly agree', 'agree', 'neither agree nor disagree', 
         'disagree', 'strongly disagree', 'n/a', 'na', 'none', 
@@ -23,21 +20,24 @@ class OperatingUnitController extends Controller
         // 1. Base Query
         $query = Feedback::query();
 
-        // --- ROBUST FILTERING (Fixes "0 Data" issue) ---
-        // We use LOWER() and TRIM() to ensure " University Registrar's Office " matches "University Registrar's Office"
-        if ($request->unit) {
+        // 2. Filter by Operating Unit (Office)
+        if ($request->filled('unit')) {
             $query->where(DB::raw('LOWER(TRIM(office))'), strtolower(trim($request->unit)));
         }
 
+        // 3. Filter by Specific Service (using 'services_availed' column)
+        // We use LIKE because one feedback row might contain multiple services
+        if ($request->filled('service') && $request->service !== 'All Services') {
+            $query->where('services_availed', 'LIKE', '%' . trim($request->service) . '%');
+        }
+
         // --- CHART 1: OVERALL SATISFACTION (Donut) ---
-        // We fetch raw counts first, then normalize keys (Positive/positive) in PHP
         $rawSentiment = (clone $query)
             ->select('sentiment', DB::raw('count(*) as count'))
             ->groupBy('sentiment')
             ->pluck('count', 'sentiment')
             ->toArray();
 
-        // Normalize Keys to Title Case (Positive, Negative, Neutral)
         $overallSentiment = [
             'Positive' => ($rawSentiment['Positive'] ?? 0) + ($rawSentiment['positive'] ?? 0) + ($rawSentiment['POSITIVE'] ?? 0),
             'Negative' => ($rawSentiment['Negative'] ?? 0) + ($rawSentiment['negative'] ?? 0) + ($rawSentiment['NEGATIVE'] ?? 0),
@@ -58,12 +58,13 @@ class OperatingUnitController extends Controller
                     'negative' => $group->whereIn('sentiment', ['Negative', 'negative', 'NEGATIVE'])->sum('count'),
                     'neutral'  => $group->whereIn('sentiment', ['Neutral', 'neutral', 'NEUTRAL'])->sum('count'),
                 ];
-            });
+            })->toArray();
 
-        // --- CHART 3: TOP NEGATIVE OFFICES (Global View Only) ---
-        // Only calculate this if NO unit is selected (to show global hotspots)
+        // --- CHART 3 & 4: GLOBAL TOP LISTS (Only shown when no unit is selected) ---
         $topNegative = [];
-        if (!$request->unit) {
+        $topPositive = [];
+        
+        if (!$request->filled('unit')) {
             $topNegative = Feedback::whereIn('sentiment', ['Negative', 'negative', 'NEGATIVE'])
                 ->whereNotIn(DB::raw('LOWER(TRIM(office))'), $this->excludedUnits)
                 ->select('office', DB::raw('count(*) as count'))
@@ -71,11 +72,7 @@ class OperatingUnitController extends Controller
                 ->orderByDesc('count')
                 ->limit(5)
                 ->get();
-        }
 
-        // --- CHART 4: TOP POSITIVE OFFICES (Global View Only) ---
-        $topPositive = [];
-        if (!$request->unit) {
             $topPositive = Feedback::whereIn('sentiment', ['Positive', 'positive', 'POSITIVE'])
                 ->whereNotIn(DB::raw('LOWER(TRIM(office))'), $this->excludedUnits)
                 ->select('office', DB::raw('count(*) as count'))
@@ -91,7 +88,6 @@ class OperatingUnitController extends Controller
             ->take(10)
             ->get()
             ->map(function($item) {
-                // Normalize sentiment string for the UI badges
                 $item->sentiment = ucfirst(strtolower($item->sentiment)); 
                 return $item;
             });
@@ -105,7 +101,11 @@ class OperatingUnitController extends Controller
                 'top_positive'        => $topPositive,
             ],
             'recent_feedback' => $recentFeedback,
-            'filters' => $request->only(['unit']) // Pass back the selected unit
+            // Use filled() check to ensure we only pass back valid filters
+            'filters' => [
+                'unit' => $request->unit ?? "",
+                'service' => $request->service ?? "All Services"
+            ]
         ]);
     }
 }
