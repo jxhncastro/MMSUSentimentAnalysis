@@ -268,10 +268,10 @@ const refreshData = () => {
                     <h2 class="text-2xl font-black text-[#0c4b33] tracking-wide uppercase">Datasets</h2>
                     <div class="flex items-center gap-3 mt-1">
                         <p class="text-xs text-gray-500 font-bold">Processed review data.</p>
-                        <span class="flex items-center gap-1.5 px-2 py-0.5 rounded border border-blue-100 bg-blue-50 text-[10px] font-bold text-blue-600 uppercase tracking-wider">
+                        <!-- <span class="flex items-center gap-1.5 px-2 py-0.5 rounded border border-blue-100 bg-blue-50 text-[10px] font-bold text-blue-600 uppercase tracking-wider">
                             <span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
                             Live Feed
-                        </span>
+                        </span> -->
                     </div>
                 </div>
                 

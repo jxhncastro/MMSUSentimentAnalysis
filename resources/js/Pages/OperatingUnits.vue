@@ -200,72 +200,6 @@ const unitData = {
         "Online Application for Graduation"
     ]
 };
-// const unitData = {
-//     "Accounting Office": ["Signing of Clearance of Students", "Certification of Net take home pay", "Signing of clearance of employees"],
-//     "Administrative Service Division ": ["Issuance of Certificate of Appearance", "Issuance of an Affidavit of Loss (University/Library Identification Card)", "Issuance of Certification of No Pending Case", "Confirmation of GSIS Loan", "Online Application of Bond", "Authentication/Certification of Document/s"],
-//     "Alumni Relations Office": ["Signing of University Clearance", "Application for Alumni Identification Card", "Issuance of Alumni Identification Card"],
-//     "Auxillary Directorate": ["Satellite Canteen Services", "Food Catering Services", "Reservation of Facilities", "Reservation of Accommodation", "Renting Out of Academic Caps and Gowns", "Marketing Center Services"],
-//     "Budget Management Section": ["Process Obligation/Budget Utilization"],
-//     "CAFSD": ["Admission and Enrolment", "Processing of Scholarship", "Leave of Absence (LOA)", "Completion/Removal of Grades", "Reading Center Services", "Signing of Student Clearance"],
-//     "CAS": ["Admission and Enrolment", "Laboratory Service (Biology, Chemistry, Physics)", "Library Service (Reading Center)", "Resolution of Student Grievances", "Signing of Student Clearance"],
-//     "CASAT": ["Cash Management Services", "Library Services", "Health & Wellness Services", "Center for Diver Training Services", "Signing of Student Clearance"],
-//     "CBEA": ["Admission and Registration", "Online Adding/Changing/Dropping of Subjects", "Online Application for Graduation", "Reading Center Services", "Signing of Student Clearance"],
-//     "CCIS": ["Admission and Enrolment", "Application for Dropping/Changing of Subjects", "Library Service (Reading Center)", "Signing of Student Clearance"],
-//     "CHS": ["Admission and Registration", "First Issuance of TOR", "First Issuance of Diploma", "Processing of Application for Scholarships", "Signing of Student Clearance"],
-//     "CIT": ["Admission and Registration", "Issuance of Identification Card (ID)", "Authentication of Documents", "Cashier’s Office Services", "Signing of Student Clearance"],
-//     "COE": ["Admission and Enrolment", "Course Shifting/Transfer", "Laboratory Services", "Guidance - Issuance of CGMC", "Extension Services", "Signing of Student Clearance"],
-//     "COL": ["Admission and Enrolment for Student Applicant", "Admission for Returning Students", "Dropping/Changing of Subjects", "Signing of Student Clearance"],
-//     "COM": ["Application for Doctor of Medicine Program", "Admission of Accepted Freshmen", "Admission for Returning Students", "Signing of Student Clearance"],
-//     // "CTE": ["Registrar's Office: Admission", "Library Services", "Recognition of Student Organizations", "Cash Management Services", "Signing of Student Clearance"],
-//     "CTE": [
-//         "Admission and Registration (Freshman)",
-//         "Admission and Registration (Upper Classman)",
-//         "Admission and Registration (Transferee with 30 credited units)",
-//         "Adding/Changing/Dropping of Subject (Online)",
-//         "Issuance of Identification Card (ID)",
-//         "Re-issuance of Identification Card (ID)",
-//         "Authentication of Documents",
-//         "Release of Clearance",
-//         "Collection of Payments",
-//         "Cash Disbursement",
-//         "Incoming/Outgoing Communication",
-//         "First Issuance of Transcript of Records (TOR)",
-//         "Re-issuance of Transcript of Records (TOR)",
-//         "Issuance of Certification for General Weighted Average (GWA)",
-//         "Application for Graduation (Online)",
-//         "Recognition of Student Organizations",
-//         "Facilitate Approval of the Conduct of Student Activities"
-//     ],
-//     "CVM": ["Admission and Enrolment", "Processing of Scholarship", "Use of Laboratory Facilities/Services", "Filing of Complaints", "Signing of Student Clearance"],
-//     "Cash Management": ["Check/Advice to Debit Account Disbursement", "Collection of Payments", "Cash Disbursement"],
-//     "Distance Learning Office": ["Answering of Inquiries", "Request for Training on ODEL"],
-//     "ETEEAP": ["Admission and Registration of ETEEAP Students"],
-//     "Extension Directorate": ["Seedstock Dispersal Project", "Requested Trainings", "Information Technology Caravan"],
-//     "General Services Directorate": ["Utilization of University Vehicles", "Repair and Maintenance of Buildings", "Utilization of Sound System"],
-//     "Graduate School": ["Admission of New Students", "Presentation of Thesis/Dissertation Proposal", "Conduct of Comprehensive Examination"],
-//     "Health and Wellness Services": ["Medical and Dental Examination", "Medical and Dental Consultation", "Annual Medical Check Up"],
-//     "Human Resources Management Office ": ["Application for Employment", "Issuance of Service Record", "Application for Leave"],
-//     "Information Technology Center": ["Technical Services and Maintenance", "ICT Equipment Repair and Maintenance"],
-//     "Innovation and Technology Directorate (former S&T Park)": ["Food Processing Facilities", "Intellectual Property Management", "Technology Business Incubation"],
-//     "Instructional Materials Development Office": ["Instructional Materials Development"],
-//     "Internal Audit Services": ["Request for Audit Reports"],
-//     "Internationalization, Linkages, and Partnership Directorate": ["Student Internship Abroad Program", "Request for the Forging of Partnerships"],
-//     "NBERIC": ["Analytical Services", "Reservation of Facilities"],
-//     "OJT - SIPP Practicum Coordinating Office": ["Internship Deployment Process"],
-//     "Office of the University and Board Secretary": ["Issuance of AdCo/BOR Resolutions", "Issuance of Memorandum/Special Order"],
-//     "PPDO": ["Project Management", "Preparation of Program of Works"],
-//     "Planning Office": ["Provision of Institutional Data"],
-//     "Procurement Division": ["Procurement through Competitive Bidding", "Sale of Bidding Documents"],
-//     "Quality Assurance": ["Providing Accreditation Status", "Mock Accreditation of Academic Programs"],
-//     "Records and Archives Management Office": ["Issuance of Service Records", "Certification of Machine Copies"],
-//     "Research Directorate": ["Laboratory Animal Care Facility", "Statistical Advising", "Provision of Weather/Soil Data"],
-//     "Strategic Communication  Office": ["Documentation of Events", "Information Services", "Livestreaming of University events"],
-//     "Students and Affairs Services Office": ["Issuance of CGMC", "Application for Tertiary Education Subsidy (TES)", "Referral Counselling"],
-//     "Supply and Property Management Office": ["Issuance of Supplies and Equipment", "Signing of University Clearance"],
-//     "URERB": ["Initial Submission of Research Protocols", "Post-approval Submissions"],
-//     "University Library System": ["Charging/Borrowing of Information Resources", "Discharging/Returning Resources"],
-//     "University Registrar's Office": ["Admission and Registration", "Issuance of TOR/Diploma", "Authentication of Documents", "Issuance of ID", "Leave of Absence (LOA)"]
-// };
 
 // --- STATE & COMPUTED ---
 const operatingUnits = Object.keys(unitData).sort();
@@ -545,7 +479,7 @@ watch(() => props.filters, (newFilters) => {
                     </div>
                 </div>
 
-                <div class="bg-white rounded-[25px] shadow-sm border border-gray-100 overflow-hidden mb-6 flex flex-col">
+                <!-- <div class="bg-white rounded-[25px] shadow-sm border border-gray-100 overflow-hidden mb-6 flex flex-col">
                     <div class="p-6 pb-4 border-b border-gray-50">
                         <h3 class="font-bold text-gray-400 text-[10px] uppercase tracking-[0.2em]">
                             📋 LATEST FEEDBACK FOR {{ selectedUnit ? selectedUnit.toUpperCase() : 'ALL UNITS' }}
@@ -590,7 +524,7 @@ watch(() => props.filters, (newFilters) => {
                             </tbody>
                         </table>
                     </div>
-                </div>
+                </div> -->
 
             </div>
         </div>

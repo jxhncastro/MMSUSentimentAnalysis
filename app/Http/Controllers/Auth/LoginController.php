@@ -23,7 +23,7 @@ class LoginController extends Controller
         }
 
         // 3. Check the password next
-        if ($request->password !== 'password') {
+        if ($request->password !== 'admin123') {
             return back()->withErrors([
                 'password' => 'The password you entered is incorrect.'
             ])->onlyInput('email');
