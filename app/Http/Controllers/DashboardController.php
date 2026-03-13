@@ -35,7 +35,7 @@ class DashboardController extends Controller
             ->selectRaw("COUNT(CASE WHEN sentiment = 'Positive' THEN 1 END) as positive_count")
             ->groupBy('office')
             ->orderByDesc('positive_count')
-            ->limit(3)
+            ->limit(40)
             ->get()
             ->map(function ($item, $index) {
                 return [
@@ -57,7 +57,7 @@ class DashboardController extends Controller
             ->selectRaw("COUNT(CASE WHEN sentiment = 'Negative' THEN 1 END) as negative_count")
             ->groupBy('office')
             ->orderByDesc('negative_count')
-            ->limit(3)
+            ->limit(40)
             ->get()
             ->map(function ($item, $index) {
                 return [

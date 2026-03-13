@@ -1,14 +1,22 @@
 # --- 1. INSTALL REQUIREMENTS ---
 import torch
 import re
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, pipeline
 from fastapi import FastAPI
 from pydantic import BaseModel
 
 # --- 2. CONFIGURATION ---
-# Important: Since we mount the current directory to /app in Docker, 
-# you MUST have a folder named 'mmsu_model_optimized_v3' right next to this file!
 MODEL_PATH = "./mmsu_model_optimized_v3"
+
+# Define your specific themes here! You can add or remove any category.
+THEMATIC_CATEGORIES = [
+    "Service", 
+    "Reliability", 
+    "Facilities", 
+    "Manpower",
+    "Academics",
+    "Enrollment"
+]
 
 # --- 3. LEXICON GUARDS ---
 
@@ -46,15 +54,23 @@ positive_override_phrases = [
 ]
 positive_override_regex = re.compile(r'\b(' + '|'.join(map(re.escape, positive_override_phrases)) + r')\b', re.IGNORECASE)
 
-# --- 4. LOAD MODEL ---
+# --- 4. LOAD MODELS ---
 print("🧠 Loading MMSU Sentiment AI Model... (Please wait)")
 device = "cuda" if torch.cuda.is_available() else "cpu"
+# For the pipeline, device 0 is GPU, -1 is CPU
+pipeline_device = 0 if device == "cuda" else -1 
 
 try:
+    # 1. Load your custom Sentiment Model
     tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
     model = AutoModelForSequenceClassification.from_pretrained(MODEL_PATH).to(device)
     model.eval()
-    print(f"✅ Model Loaded Successfully on {device.upper()}")
+    
+    # 2. Load the Zero-Shot Thematic Model (Downloads ~1.6GB the very first time it runs)
+    print("🎯 Loading Thematic Classifier...")
+    theme_classifier = pipeline("zero-shot-classification", model="facebook/bart-large-mnli", device=pipeline_device)
+    
+    print(f"✅ Both Models Loaded Successfully on {device.upper()}")
 except Exception as e:
     print(f"❌ Error Loading Model: {e}")
     print("⚠️ Make sure you downloaded the 'mmsu_model_optimized_v3' folder from Google Drive and put it next to this file!")
@@ -84,18 +100,27 @@ def analyze_logic(text, aspect):
 
     text_content = text
 
+    # --- THEMATIC ANALYSIS (Runs on every valid text) ---
+    # We run this first so we can attach it to the Lexicon overrides too!
+    predicted_theme = "General"
+    if len(text_content) > 5:  # Only theme it if it's an actual sentence
+        theme_result = theme_classifier(text_content, THEMATIC_CATEGORIES)
+        # Check if the highest score is confident enough
+        if theme_result['scores'][0] > 0.25:
+            predicted_theme = theme_result['labels'][0].upper()
+
     # --- RULE 3: POSITIVE OVERRIDE ---
     if positive_override_regex.search(text_content):
-        return {"sentiment": "Positive", "confidence": 100.0, "method": "Lexicon_Positive_Override", "aspect": aspect}
+        return {"sentiment": "Positive", "confidence": 100.0, "method": "Lexicon_Positive_Override", "aspect": aspect, "theme": predicted_theme}
 
     # --- RULE 4: NEGATIVE CHECK ---
     is_saved = saver_regex.search(text_content)
     if negative_regex.search(text_content) and not is_saved:
-        return {"sentiment": "Negative", "confidence": 99.9, "method": "Lexicon_Negative", "aspect": aspect}
+        return {"sentiment": "Negative", "confidence": 99.9, "method": "Lexicon_Negative", "aspect": aspect, "theme": predicted_theme}
 
     # --- RULE 5: NEUTRAL CHECK ---
     if neutral_regex.search(text_content) and len(text_content) < 50:
-        return {"sentiment": "Neutral", "confidence": 100.0, "method": "Lexicon_Neutral", "aspect": aspect}
+        return {"sentiment": "Neutral", "confidence": 100.0, "method": "Lexicon_Neutral", "aspect": aspect, "theme": "GENERAL"}
 
     # --- 6. AI PREDICTION ---
     try:
@@ -111,10 +136,11 @@ def analyze_logic(text, aspect):
             "sentiment": labels[pred_idx],
             "confidence": round(probs[0][pred_idx].item() * 100, 2),
             "method": "MMSU_Transformer_v3",
-            "aspect": aspect
+            "aspect": aspect,
+            "theme": predicted_theme # Attached here!
         }
     except Exception as e:
-        return {"sentiment": "Neutral", "confidence": 0.0, "error": str(e), "aspect": aspect}
+        return {"sentiment": "Neutral", "confidence": 0.0, "error": str(e), "aspect": aspect, "theme": "ERROR"}
 
 @app.post("/predict")
 def predict_endpoint(data: RequestData):

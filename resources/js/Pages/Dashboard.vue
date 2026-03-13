@@ -171,6 +171,20 @@ const refreshData = () => {
         onFinish: () => { isRefreshing.value = false; }
     });
 };
+// --- NEW
+
+// 1. State to track if the list is expanded or collapsed
+const showAllTop = ref(false);
+const showAllNeedsImprovement = ref(false);
+
+// 2. Logic to slice the array to 3 items unless "See More" is clicked
+const visibleTopPerformers = computed(() => {
+    return showAllTop.value ? props.topPerformers : props.topPerformers.slice(0, 3);
+});
+
+const visibleNeedsImprovement = computed(() => {
+    return showAllNeedsImprovement.value ? props.needsImprovement : props.needsImprovement.slice(0, 3);
+});
 </script>
 
 <template>
@@ -179,29 +193,43 @@ const refreshData = () => {
     <DashboardLayout>
         
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-            <div>
-                <h2 class="text-2xl font-black text-[#0c4b33] uppercase tracking-wide">Executive Overview</h2>
-                <p class="text-sm text-gray-500 font-bold">Stakeholder Feedback Analysis</p>
-            </div>
-            
-            <button 
-                @click="submitClear"
-                type="button" 
-                :disabled="form.processing"
-                class="bg-white border border-red-200 text-red-500 hover:bg-red-500 hover:text-white px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition flex items-center gap-2 shadow-sm hover:shadow-md cursor-pointer disabled:opacity-50"
-            >
-                <span class="text-lg" v-if="!form.processing">🗑️</span>
-                <span class="text-lg animate-spin" v-else>⏳</span>
-                {{ form.processing ? 'Clearing...' : 'Clear All Data' }}
-            </button>
+           <div class="flex items-center gap-6">
+        <div>
+            <h2 class="text-2xl font-black text-[#0c4b33] uppercase tracking-wide">Executive Overview</h2>
+            <p class="text-sm text-gray-500 font-bold uppercase tracking-tighter">Stakeholder Feedback Analysis</p>
         </div>
+
+        <!-- <div class="flex items-center gap-3 bg-white border border-gray-100 shadow-sm px-5 py-3 rounded-[20px]">
+            <div class="bg-[#0c4b33] text-white p-2 rounded-lg shadow-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+            </div>
+            <div>
+                <p class="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none">Total Processed</p>
+                <p class="text-xl font-black text-gray-800 leading-tight">{{ props.stats.total }} <span class="text-[10px] text-gray-400 font-bold ml-1">Comments</span></p>
+            </div>
+        </div> -->
+    </div>
+    
+    <button 
+        @click="submitClear"
+        type="button" 
+        :disabled="form.processing"
+        class="bg-white border border-red-200 text-red-500 hover:bg-red-500 hover:text-white px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition flex items-center gap-2 shadow-sm hover:shadow-md cursor-pointer disabled:opacity-50"
+    >
+        <span class="text-lg" v-if="!form.processing"></span>
+        <span class="text-lg animate-spin" v-else>⏳</span>
+        {{ form.processing ? 'Clearing...' : 'Clear All Data' }}
+    </button>
+</div>
 
         <div class="grid grid-cols-2 md:grid-cols-4 gap-5 mb-8">
             <div v-for="(item, index) in [
                 { label: 'Total Feedback', val: props.stats.total, color: 'bg-white border-gray-100 border text-gray-800' },
-                { label: 'Positive', val: props.stats.positive, color: 'bg-[#0c4b33] text-white' },
-                { label: 'Negative', val: props.stats.negative, color: 'bg-red-500 text-white' },
-                { label: 'Neutral', val: props.stats.neutral, color: 'bg-yellow-500 text-white' }
+                { label: 'Positive', val: props.stats.positive, color: 'bg-[#0C4B05] text-white' },
+                { label: 'Negative', val: props.stats.negative, color: 'bg-[#DE1900] text-white' },
+                { label: 'Neutral', val: props.stats.neutral, color: 'bg-[#FFCD00] text-white' }
             ]" :key="index" 
                  class="rounded-[25px] p-6 shadow-sm transition hover:scale-105 duration-300 flex flex-col justify-between h-32"
                  :class="item.color">
@@ -210,18 +238,19 @@ const refreshData = () => {
             </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12">
-            <div class="bg-gradient-to-br from-[#0c4b33] to-[#1a6e4d] rounded-[35px] p-8 shadow-sm text-white border-b-8 border-yellow-400">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12 items-start">
+            <div class="bg-gradient-to-br from-[#0C4B05] to-[#1a6e4d] rounded-[35px] p-8 shadow-sm text-white border-b-8 border-[#FFCD00]">
                  <div class="flex justify-between items-start mb-8">
                     <div>
-                        <h3 class="font-black text-[10px] uppercase tracking-widest text-yellow-400">Excellence Awardees</h3>
+                        <h3 class="font-black text-[10px] uppercase tracking-widest text-yellow-400">Execellence Awardees</h3>
                         <p class="text-2xl font-black uppercase">Top Offices</p>
                     </div>
-                    <span class="text-2xl">🏆</span>
+                    <span class="text-2xl"></span>
                  </div>
                  <div class="space-y-6">
                     <div v-if="props.topPerformers.length === 0" class="text-center text-sm opacity-50 py-10">No data available yet.</div>
-                    <div v-else v-for="(item, i) in props.topPerformers" :key="i" class="flex items-center justify-between group">
+                    
+                    <div v-else v-for="(item, i) in visibleTopPerformers" :key="i" class="flex items-center justify-between group">
                         <div class="flex items-center gap-4">
                             <div class="bg-white/20 w-8 h-8 rounded-full flex items-center justify-center text-white font-black text-xs shadow-sm">{{ i + 1 }}</div>
                             <div>
@@ -231,7 +260,15 @@ const refreshData = () => {
                         </div>
                         <span class="text-sm font-black text-yellow-400">{{ item.score }}</span>
                     </div>
-                 </div>
+
+                    <button 
+                        v-if="props.topPerformers.length > 3"
+                        @click="showAllTop = !showAllTop"
+                        class="w-full mt-2 py-2 text-[10px] font-black uppercase tracking-widest text-yellow-400 border border-white/10 rounded-xl hover:bg-white/10 transition"
+                    >
+                        {{ showAllTop ? 'Show Less' : 'See More' }}
+                    </button>
+                </div>
             </div>
 
             <div class="bg-white rounded-[35px] p-8 shadow-sm border border-red-50 border-b-8 border-red-500">
@@ -240,24 +277,33 @@ const refreshData = () => {
                         <h3 class="font-black text-[10px] uppercase tracking-widest text-red-500">Action Required</h3>
                         <p class="text-2xl font-black text-gray-800 uppercase leading-tight">Top Offices Needing Improvement</p>
                     </div>
-                    <span class="text-2xl">⚠️</span>
+                    <span class="text-2xl"></span>
                  </div>
-                 <div class="space-y-6">
-                    <div v-if="props.needsImprovement.length === 0" class="text-center text-gray-400 text-sm py-10">No critical issues found.</div>
-                    <div v-else v-for="(item, i) in props.needsImprovement" :key="i" class="flex items-center justify-between group">
-                        <div class="flex items-center gap-4">
-                            <div class="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 font-black text-xs">{{ i + 1 }}</div>
-                            <div>
-                                <div class="text-xs font-black text-gray-700 uppercase tracking-tight">{{ item.unit }}</div>
-                                <div class="text-[10px] text-red-400 font-bold uppercase tracking-tighter italic">{{ item.issue }}</div>
+                <div class="space-y-6">
+                        <div v-if="props.needsImprovement.length === 0" class="text-center text-gray-400 text-sm py-10">No critical issues found.</div>
+                        
+                        <div v-else v-for="(item, i) in visibleNeedsImprovement" :key="i" class="flex items-center justify-between group">
+                            <div class="flex items-center gap-4">
+                                <div class="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 font-black text-xs">{{ i + 1 }}</div>
+                                <div>
+                                    <div class="text-xs font-black text-gray-700 uppercase tracking-tight">{{ item.unit }}</div>
+                                    <div class="text-[10px] text-red-400 font-bold uppercase tracking-tighter italic">{{ item.issue }}</div>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-sm font-black text-red-500">{{ item.score }}</span>
+                                <div class="text-[8px] text-gray-400 font-bold uppercase">Negative Rate</div>
                             </div>
                         </div>
-                        <div class="text-right">
-                            <span class="text-sm font-black text-red-500">{{ item.score }}</span>
-                            <div class="text-[8px] text-gray-400 font-bold uppercase">Negative Rate</div>
-                        </div>
+
+                        <button 
+                            v-if="props.needsImprovement.length > 3"
+                            @click="showAllNeedsImprovement = !showAllNeedsImprovement"
+                            class="w-full mt-2 py-2 text-[10px] font-black uppercase tracking-widest text-red-500 border border-red-50 rounded-xl hover:bg-red-50 transition"
+                        >
+                            {{ showAllNeedsImprovement ? 'Show Less' : 'See More' }}
+                        </button>
                     </div>
-                 </div>
             </div>
         </div>
 
@@ -268,10 +314,6 @@ const refreshData = () => {
                     <h2 class="text-2xl font-black text-[#0c4b33] tracking-wide uppercase">Datasets</h2>
                     <div class="flex items-center gap-3 mt-1">
                         <p class="text-xs text-gray-500 font-bold">Processed review data.</p>
-                        <!-- <span class="flex items-center gap-1.5 px-2 py-0.5 rounded border border-blue-100 bg-blue-50 text-[10px] font-bold text-blue-600 uppercase tracking-wider">
-                            <span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
-                            Live Feed
-                        </span> -->
                     </div>
                 </div>
                 
@@ -336,6 +378,7 @@ const refreshData = () => {
                             <th class="py-4 pr-4 pl-4">Operating Unit</th>
                             <th class="py-4 pr-4 w-1/3">Review</th>
                             <th class="py-4 pr-4">Services</th>
+                            <th class="py-4 pr-4">Theme</th>
                             <th 
                                 class="py-4 text-right pr-4 cursor-pointer hover:text-[#0c4b33] transition-colors select-none"
                                 @click="toggleSort"
@@ -368,6 +411,16 @@ const refreshData = () => {
                                 <div class="text-[10px] text-gray-400 uppercase font-mono font-bold" :title="row.services_availed">
                                     {{ row.services_availed || '---' }}
                                 </div>
+                            </td>
+
+                            <td class="py-4 pr-4 align-top">
+                                <span 
+                                    v-if="row.topic"
+                                    class="inline-flex items-center px-2 py-1 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 text-[9px] font-black uppercase tracking-wider shadow-sm"
+                                >
+                                    {{ row.topic }}
+                                </span>
+                                <span v-else class="text-[10px] text-gray-300 font-mono font-bold">---</span>
                             </td>
 
                             <td class="py-4 text-right align-top pr-4">
@@ -432,6 +485,11 @@ const refreshData = () => {
 </template>
 
 <style scoped>
+/* Inject Calibri Font and apply to container */
+.dashboard-container {
+    font-family: 'Calibri', 'Candara', 'Segui UI', 'Optima', Arial, sans-serif;
+}
+
 .custom-scrollbar::-webkit-scrollbar {
     width: 6px;
     height: 6px;

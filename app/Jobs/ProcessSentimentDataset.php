@@ -108,7 +108,7 @@ class ProcessSentimentDataset implements ShouldQueue
                     'services_availed'  => $combinedServices,
                     'comment'           => $cleanText,
                     'sentiment'         => ucfirst($analysis['sentiment']),
-                    'topic'             => $analysis['aspect'] ?? 'General',
+                    'topic'             => $analysis['theme'] ?? $analysis['aspect'] ?? 'General',
                     'confidence'        => $this->getConfidenceTier($analysis['confidence']),
                     'method'            => $analysis['method'],
                     'created_at'        => now(),

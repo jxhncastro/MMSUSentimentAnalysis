@@ -301,23 +301,23 @@ watch(() => props.filters, (newFilters) => {
     <Head :title="selectedUnit ? `Analysis - ${selectedUnit}` : 'Global Analytics'" />
 
     <DashboardLayout>
-        <div class="flex flex-col gap-6 h-full p-2 lg:p-4">
+        <div class="flex flex-col gap-6 h-full p-2 lg:p-4 font-['Calibri',_sans-serif] text-sm">
             
             <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h2 class="font-bold text-2xl text-[#0c4b33] uppercase tracking-tight">
+                    <h2 class="font-bold text-3xl text-[#0c4b33] uppercase tracking-tight">
                         {{ selectedUnit ? 'Operating Unit Analysis' : 'Global Analytics' }}
                     </h2>
-                    <p class="text-xs text-gray-500 font-medium italic">
+                    <p class="text-sm text-gray-500 font-medium italic">
                         Viewing analytics for: <span class="text-yellow-600 font-bold">{{ selectedUnit || 'All Operating Units' }}</span>
                     </p>
                 </div>
                 
-                <div class="flex items-center gap-3 bg-white p-2 px-4 rounded-2xl shadow-sm border border-gray-100 transition-all hover:shadow-md">
-                    <label class="text-[10px] font-black text-gray-400 uppercase">Switch Unit</label>
+                <div class="flex items-center gap-3 bg-white p-3 px-5 rounded-2xl shadow-sm border border-gray-100 transition-all hover:shadow-md">
+                    <label class="text-xs font-black text-gray-400 uppercase">Switch Unit</label>
                     <select 
                         v-model="selectedUnit" 
-                        class="border-none bg-transparent focus:ring-0 text-sm font-bold text-gray-700 min-w-[300px] cursor-pointer"
+                        class="border-none bg-transparent focus:ring-0 text-base font-bold text-gray-700 min-w-[300px] cursor-pointer"
                     >
                         <option value="">All Operating Units</option>
                         <option v-for="unit in operatingUnits" :key="unit" :value="unit">
@@ -331,19 +331,19 @@ watch(() => props.filters, (newFilters) => {
                 
                 <div v-if="selectedUnit" class="flex flex-col gap-2">
                     <div class="flex justify-between items-center px-2">
-                        <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Filter by Service</h3>
-                        <span class="text-[10px] font-bold text-[#0c4b33] uppercase bg-white px-2 py-1 rounded-md shadow-sm border border-gray-100">
+                        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest">Filter by Service</h3>
+                        <span class="text-xs font-bold text-[#0C4B05] uppercase bg-white px-3 py-1.5 rounded-md shadow-sm border border-gray-100">
                             {{ selectedService }}
                         </span>
                     </div>
                     
-                    <div class="bg-gradient-to-r from-[#0c4b33] to-[#1a6e4d] rounded-2xl p-5 shadow-lg border-b-4 border-yellow-400 max-h-64 overflow-y-auto custom-scrollbar">
-                        <div class="flex flex-wrap gap-2 justify-start items-center">
+                    <div class="bg-gradient-to-r from-[#0C4B05] to-[#0C4B05] rounded-2xl p-6 shadow-lg border-b-4 border-yellow-400 max-h-64 overflow-y-auto custom-scrollbar">
+                        <div class="flex flex-wrap gap-3 justify-start items-center">
                             <button 
                                 v-for="service in services" 
                                 :key="service" 
                                 @click="selectService(service)"
-                                class="whitespace-nowrap px-4 py-2 rounded-full text-[10px] font-bold transition-all duration-300 border focus:outline-none shadow-sm"
+                                class="whitespace-nowrap px-5 py-2.5 rounded-full text-xs font-bold transition-all duration-300 border focus:outline-none shadow-sm"
                                 :class="[
                                     selectedService === service 
                                     ? 'bg-yellow-400 text-[#0c4b33] border-yellow-400 shadow-md scale-105 z-10' 
@@ -357,60 +357,60 @@ watch(() => props.filters, (newFilters) => {
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="bg-white rounded-[35px] p-8 shadow-sm min-h-[350px] flex flex-col items-center justify-center relative border border-gray-100 hover:shadow-md transition-shadow">
-                        <h3 class="absolute top-8 left-0 right-0 text-center font-bold text-gray-400 text-[10px] uppercase tracking-[0.2em]">
+                    <div class="bg-white rounded-[35px] p-8 shadow-sm min-h-[380px] flex flex-col items-center justify-center relative border border-gray-100 hover:shadow-md transition-shadow">
+                        <h3 class="absolute top-8 left-0 right-0 text-center font-bold text-gray-400 text-xs uppercase tracking-[0.2em]">
                             SENTIMENT RATIO
                         </h3>
                         
-                        <div class="relative w-52 h-52 rounded-full shadow-xl transition-all duration-700 ease-in-out hover:scale-105"
+                        <div class="relative w-56 h-56 rounded-full shadow-xl transition-all duration-700 ease-in-out hover:scale-105"
                              :style="{ background: sentimentGradient }">
-                            <div class="absolute inset-8 bg-white rounded-full flex flex-col items-center justify-center shadow-inner">
-                                <span class="text-4xl font-black text-[#0c4b33]">{{ positivePercentage }}%</span>
-                                <span class="text-[9px] text-gray-400 font-bold uppercase tracking-tighter">Positive</span>
+                            <div class="absolute inset-10 bg-white rounded-full flex flex-col items-center justify-center shadow-inner">
+                                <span class="text-5xl font-black text-[#0C4B05]">{{ positivePercentage }}%</span>
+                                <span class="text-xs text-gray-400 font-bold uppercase tracking-tighter">Positive</span>
                             </div> 
                         </div>
 
-                        <div class="flex gap-6 mt-10">
+                        <div class="flex gap-8 mt-10">
                             <div class="flex items-center gap-2">
-                                <span class="w-3 h-3 bg-[#0c4b33] rounded-full shadow-sm"></span> 
-                                <span class="text-[9px] font-black text-gray-500 uppercase">Pos: {{ formatNum(props.charts?.overall_sentiment?.Positive) }}</span>
+                                <span class="w-4 h-4 bg-[#0C4B05] rounded-full shadow-sm"></span> 
+                                <span class="text-xs font-black text-gray-500 uppercase">Pos: {{ formatNum(props.charts?.overall_sentiment?.Positive) }}</span>
                             </div>
                             <div class="flex items-center gap-2">
-                                <span class="w-3 h-3 bg-yellow-400 rounded-full shadow-sm"></span> 
-                                <span class="text-[9px] font-black text-gray-500 uppercase">Neu: {{ formatNum(props.charts?.overall_sentiment?.Neutral) }}</span>
+                                <span class="w-4 h-4 bg-[#FFCD00] rounded-full shadow-sm"></span> 
+                                <span class="text-xs font-black text-gray-500 uppercase">Neu: {{ formatNum(props.charts?.overall_sentiment?.Neutral) }}</span>
                             </div>
                             <div class="flex items-center gap-2">
-                                <span class="w-3 h-3 bg-red-500 rounded-full shadow-sm"></span> 
-                                <span class="text-[9px] font-black text-gray-500 uppercase">Neg: {{ formatNum(props.charts?.overall_sentiment?.Negative) }}</span>
+                                <span class="w-4 h-4 bg-[#DE1900]rounded-full shadow-sm"></span> 
+                                <span class="text-xs font-black text-gray-500 uppercase">Neg: {{ formatNum(props.charts?.overall_sentiment?.Negative) }}</span>
                             </div>
                         </div>
                     </div>
 
-                    <div class="bg-white rounded-[35px] p-8 shadow-sm min-h-[350px] flex flex-col relative border border-gray-100 overflow-y-auto custom-scrollbar hover:shadow-md transition-shadow">
+                    <div class="bg-white rounded-[35px] p-8 shadow-sm min-h-[380px] flex flex-col relative border border-gray-100 overflow-y-auto custom-scrollbar hover:shadow-md transition-shadow">
                         <div v-if="selectedUnit" class="flex-1 flex flex-col">
-                            <h3 class="text-center font-bold text-gray-400 text-[10px] uppercase tracking-[0.2em] mb-6 sticky top-0 bg-white z-10 pb-2">
+                            <h3 class="text-center font-bold text-gray-400 text-xs uppercase tracking-[0.2em] mb-8 sticky top-0 bg-white z-10 pb-2">
                                 SENTIMENT DRIVERS (TOPICS)
                             </h3>
                             
-                            <div class="flex-1 flex flex-col gap-5">
-                                <div v-if="Object.keys(props.charts?.sentiment_by_topic || {}).length === 0" class="flex-1 flex items-center justify-center text-gray-300 text-xs italic">
+                            <div class="flex-1 flex flex-col gap-6">
+                                <div v-if="Object.keys(props.charts?.sentiment_by_topic || {}).length === 0" class="flex-1 flex items-center justify-center text-gray-300 text-sm italic">
                                     No topic data available for this unit.
                                 </div>
 
                                 <div v-for="(counts, topic) in props.charts.sentiment_by_topic" :key="topic" class="group relative cursor-default">
-                                    <div class="flex justify-between items-end text-[10px] font-bold text-gray-600 mb-1.5">
+                                    <div class="flex justify-between items-end text-xs font-bold text-gray-600 mb-2">
                                         <span class="truncate pr-2">{{ topic }}</span>
                                         <span class="opacity-50 group-hover:opacity-0 transition-opacity">{{ formatNum((counts.positive || 0) + (counts.negative || 0) + (counts.neutral || 0)) }}</span>
                                     </div>
 
-                                    <div class="absolute right-0 -top-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-1.5 text-[8px] font-black">
-                                        <span v-if="counts.positive" class="text-green-700 bg-green-100 px-1.5 rounded">POS: {{ counts.positive }}</span>
-                                        <span v-if="counts.neutral" class="text-yellow-700 bg-yellow-100 px-1.5 rounded">NEU: {{ counts.neutral }}</span>
-                                        <span v-if="counts.negative" class="text-red-700 bg-red-100 px-1.5 rounded">NEG: {{ counts.negative }}</span>
+                                    <div class="absolute right-0 -top-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-2 text-[10px] font-black">
+                                        <span v-if="counts.positive" class="text-green-700 bg-green-100 px-2 rounded">POS: {{ counts.positive }}</span>
+                                        <span v-if="counts.neutral" class="text-yellow-700 bg-yellow-100 px-2 rounded">NEU: {{ counts.neutral }}</span>
+                                        <span v-if="counts.negative" class="text-red-700 bg-red-100 px-2 rounded">NEG: {{ counts.negative }}</span>
                                     </div>
 
-                                    <div class="w-full h-3 bg-gray-100 rounded-full flex overflow-hidden shadow-inner">
-                                        <div v-if="counts.positive" class="bg-gradient-to-r from-[#0c4b33] to-[#1a6e4d] h-full transition-all duration-700 group-hover:brightness-110" :style="{ width: ((counts.positive || 0) / maxTopicCount * 100) + '%' }"></div>
+                                    <div class="w-full h-4 bg-gray-100 rounded-full flex overflow-hidden shadow-inner">
+                                        <div v-if="counts.positive" class="bg-gradient-to-r from-[#0C4B05] to-[#0C4B05] h-full transition-all duration-700 group-hover:brightness-110" :style="{ width: ((counts.positive || 0) / maxTopicCount * 100) + '%' }"></div>
                                         <div v-if="counts.neutral" class="bg-gradient-to-r from-yellow-400 to-yellow-300 h-full transition-all duration-700 group-hover:brightness-110" :style="{ width: ((counts.neutral || 0) / maxTopicCount * 100) + '%' }"></div>
                                         <div v-if="counts.negative" class="bg-gradient-to-r from-red-600 to-red-400 h-full transition-all duration-700 group-hover:brightness-110" :style="{ width: ((counts.negative || 0) / maxTopicCount * 100) + '%' }"></div>
                                     </div>
@@ -419,94 +419,91 @@ watch(() => props.filters, (newFilters) => {
                         </div>
 
                         <div v-else class="flex-1 flex flex-col">
-                            <h3 class="text-center font-bold text-red-500 text-[10px] uppercase tracking-[0.2em] mb-6 sticky top-0 bg-white z-10 pb-2">
-                                ⚠️ TOP OFFICES NEEDING IMPROVEMENT
+                            <h3 class="text-center font-bold text-red-500 text-xs uppercase tracking-[0.2em] mb-8 sticky top-0 bg-white z-10 pb-2">
+                                 TOP OFFICES NEEDING IMPROVEMENT
                             </h3>
-                            <div class="space-y-5">
+                            <div class="space-y-6">
                                 <div v-for="(item, i) in props.charts.top_negative" :key="i" class="flex items-center gap-4 group">
-                                    <span class="text-[12px] font-black text-red-200 w-4 text-center group-hover:text-red-400 transition-colors">{{ i + 1 }}</span>
+                                    <span class="text-sm font-black text-red-200 w-5 text-center group-hover:text-red-400 transition-colors">{{ i + 1 }}</span>
                                     <div class="flex-1">
-                                        <div class="flex justify-between text-[11px] font-bold text-gray-700 mb-1.5">
+                                        <div class="flex justify-between text-xs font-bold text-gray-700 mb-2">
                                             <span class="truncate w-48 group-hover:text-red-600 transition-colors">{{ item.office }}</span>
-                                            <span class="text-red-500 bg-red-50 px-2 py-0.5 rounded-md shadow-sm">{{ formatNum(item.count) }}</span>
+                                            <span class="text-red-500 bg-red-50 px-3 py-1 rounded-md shadow-sm">{{ formatNum(item.count) }}</span>
                                         </div>
-                                        <div class="w-full bg-gray-100 h-2 rounded-full overflow-hidden shadow-inner">
+                                        <div class="w-full bg-gray-100 h-3 rounded-full overflow-hidden shadow-inner">
                                             <div class="bg-gradient-to-r from-red-600 to-red-400 h-full rounded-full transition-all duration-1000 ease-out group-hover:brightness-110" 
                                                  :style="{ width: (item.count / (props.charts.top_negative[0]?.count || 1) * 100) + '%' }">
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                                <div v-if="props.charts?.top_negative?.length === 0" class="text-center text-sm text-gray-400 py-10 flex-1 flex items-center justify-center italic">
-                                    No negative feedback found! 🎉
-                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-5">
-                    <div class="transition-all duration-300 rounded-[25px] p-6 shadow-sm flex flex-col justify-between h-32 hover:scale-105 hover:shadow-md cursor-default bg-white text-gray-800 border border-gray-100">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+                    <div class="transition-all duration-300 rounded-[25px] p-6 shadow-sm flex flex-col justify-between h-36 hover:scale-105 hover:shadow-md cursor-default bg-white text-gray-800 border border-gray-100">
                         <div class="flex justify-between items-start">
-                            <div class="text-[9px] opacity-80 uppercase font-black tracking-wider leading-tight text-gray-500">Total Feedback</div>
-                            <span class="text-sm grayscale opacity-50">📊</span>
+                            <div class="text-[11px] opacity-80 uppercase font-black tracking-wider leading-tight text-gray-500">Total Feedback</div>
+                            <span class="text-base grayscale opacity-50">📊</span>
                         </div>
-                        <div class="text-3xl font-black text-gray-800">{{ formatNum(totalReviews) }}</div>
+                        <div class="text-4xl font-black text-gray-800">{{ formatNum(totalReviews) }}</div>
                     </div>
 
-                    <div class="transition-all duration-300 rounded-[25px] p-6 shadow-sm flex flex-col justify-between h-32 hover:scale-105 hover:shadow-md cursor-default bg-[#0c4b33] text-white">
+                    <div class="transition-all duration-300 rounded-[25px] p-6 shadow-sm flex flex-col justify-between h-36 hover:scale-105 hover:shadow-md cursor-default bg-[#0C4B05] text-white">
                         <div class="flex justify-between items-start">
-                            <div class="text-[9px] opacity-80 uppercase font-black tracking-wider leading-tight text-green-100">Positive</div>
-                            <span class="text-sm opacity-80">😊</span>
+                            <div class="text-[11px] opacity-80 uppercase font-black tracking-wider leading-tight text-green-100">Positive</div>
+                            <span class="text-base opacity-80"></span>
                         </div>
-                        <div class="text-3xl font-black">{{ formatNum(props.charts?.overall_sentiment?.Positive) }}</div>
+                        <div class="text-4xl font-black">{{ formatNum(props.charts?.overall_sentiment?.Positive) }}</div>
                     </div>
 
-                    <div class="transition-all duration-300 rounded-[25px] p-6 shadow-sm flex flex-col justify-between h-32 hover:scale-105 hover:shadow-md cursor-default bg-red-500 text-white">
+                    <div class="transition-all duration-300 rounded-[25px] p-6 shadow-sm flex flex-col justify-between h-36 hover:scale-105 hover:shadow-md cursor-default bg-red-500 text-white">
                         <div class="flex justify-between items-start">
-                            <div class="text-[9px] opacity-80 uppercase font-black tracking-wider leading-tight text-red-100">Negative</div>
-                            <span class="text-sm opacity-80">😟</span>
+                            <div class="text-[11px] opacity-80 uppercase font-black tracking-wider leading-tight text-red-100">Negative</div>
+                            <span class="text-base opacity-80"></span>
                         </div>
-                        <div class="text-3xl font-black">{{ formatNum(props.charts?.overall_sentiment?.Negative) }}</div>
+                        <div class="text-4xl font-black">{{ formatNum(props.charts?.overall_sentiment?.Negative) }}</div>
                     </div>
 
-                    <div class="transition-all duration-300 rounded-[25px] p-6 shadow-sm flex flex-col justify-between h-32 hover:scale-105 hover:shadow-md cursor-default bg-yellow-400 text-white">
+                    <div class="transition-all duration-300 rounded-[25px] p-6 shadow-sm flex flex-col justify-between h-36 hover:scale-105 hover:shadow-md cursor-default bg-yellow-400 text-white">
                         <div class="flex justify-between items-start">
-                            <div class="text-[9px] opacity-80 uppercase font-black tracking-wider leading-tight text-yellow-100">Neutral</div>
-                            <span class="text-sm opacity-80">😐</span>
+                            <div class="text-[11px] opacity-80 uppercase font-black tracking-wider leading-tight text-yellow-100">Neutral</div>
+                            <span class="text-base opacity-80"></span>
                         </div>
-                        <div class="text-3xl font-black drop-shadow-sm">{{ formatNum(props.charts?.overall_sentiment?.Neutral) }}</div>
+                        <div class="text-4xl font-black drop-shadow-sm">{{ formatNum(props.charts?.overall_sentiment?.Neutral) }}</div>
                     </div>
                 </div>
 
                 <!-- <div class="bg-white rounded-[25px] shadow-sm border border-gray-100 overflow-hidden mb-6 flex flex-col">
                     <div class="p-6 pb-4 border-b border-gray-50">
-                        <h3 class="font-bold text-gray-400 text-[10px] uppercase tracking-[0.2em]">
-                            📋 LATEST FEEDBACK FOR {{ selectedUnit ? selectedUnit.toUpperCase() : 'ALL UNITS' }}
+                        <h3 class="font-bold text-gray-400 text-xs uppercase tracking-[0.2em]">
+                             LATEST FEEDBACK FOR {{ selectedUnit ? selectedUnit.toUpperCase() : 'ALL UNITS' }}
                         </h3>
                     </div>
                     
-                    <div class="overflow-x-auto p-2">
-                        <table class="w-full text-left text-sm">
+                    <div class="overflow-x-auto p-4">
+                        <table class="w-full text-left">
                             <thead class="bg-gray-50/50">
-                                <tr class="text-[10px] font-black text-gray-400 uppercase tracking-wider">
-                                    <th class="py-3 pl-4 rounded-l-lg">Office</th>
-                                    <th class="py-3">Feedback</th>
-                                    <th class="py-3">Topic</th>
-                                    <th class="py-3 text-right pr-4 rounded-r-lg">Sentiment</th>
+                                <tr class="text-xs font-black text-gray-400 uppercase tracking-wider">
+                                    <th class="py-4 pl-4 rounded-l-lg">Office</th>
+                                    <th class="py-4">Feedback</th>
+                                    <th class="py-4">Topic</th>
+                                    <th class="py-4 text-right pr-4 rounded-r-lg">Sentiment</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-50">
                                 <tr v-for="row in props.recent_feedback" :key="row.id" class="group hover:bg-gray-50 transition-colors">
-                                    <td class="py-4 pl-4 font-bold text-gray-700 text-xs whitespace-nowrap">{{ row.office }}</td>
-                                    <td class="py-4 max-w-lg text-gray-600 text-xs pr-6 leading-relaxed">
+                                    <td class="py-5 pl-4 font-bold text-gray-700 text-sm whitespace-nowrap">{{ row.office }}</td>
+                                    <td class="py-5 max-w-lg text-gray-600 text-sm pr-8 leading-relaxed">
                                         <span class="text-gray-400 mr-1">"</span>{{ row.comment }}<span class="text-gray-400 ml-1">"</span>
                                     </td>
-                                    <td class="py-4">
-                                        <span class="bg-gray-100 text-gray-600 px-2 py-1 rounded text-[9px] font-bold uppercase tracking-wider border border-gray-200 shadow-sm">{{ row.topic }}</span>
+                                    <td class="py-5">
+                                        <span class="bg-gray-100 text-gray-600 px-3 py-1.5 rounded text-[11px] font-bold uppercase tracking-wider border border-gray-200 shadow-sm">{{ row.topic }}</span>
                                     </td>
-                                    <td class="py-4 text-right pr-4">
-                                        <span class="inline-block px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider shadow-sm border"
+                                    <td class="py-5 text-right pr-4">
+                                        <span class="inline-block px-3 py-1.5 rounded-md text-xs font-black uppercase tracking-wider shadow-sm border"
                                               :class="{
                                                   'bg-green-50 text-green-700 border-green-200': row.sentiment === 'Positive',
                                                   'bg-red-50 text-red-700 border-red-200': row.sentiment === 'Negative',
@@ -516,44 +513,22 @@ watch(() => props.filters, (newFilters) => {
                                         </span>
                                     </td>
                                 </tr>
-                                <tr v-if="props.recent_feedback.length === 0">
-                                    <td colspan="4" class="py-12 text-center text-sm text-gray-400 italic bg-gray-50/50 rounded-lg">
-                                        No recent feedback matches the selected filters.
-                                    </td>
-                                </tr>
                             </tbody>
                         </table>
                     </div>
                 </div> -->
-
             </div>
         </div>
     </DashboardLayout>
 </template>
 
 <style scoped>
-/* 🟢 NEW SCROLLBAR STYLING FOR WRAPPED GRID */
-.custom-scrollbar::-webkit-scrollbar { 
-    width: 6px; 
-}
-.custom-scrollbar::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 10px;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb { 
-    background: rgba(255, 255, 255, 0.3); 
-    border-radius: 10px; 
-}
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.5);
-}
+/* Scoped styles for custom UI elements */
+.custom-scrollbar::-webkit-scrollbar { width: 8px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.1); border-radius: 10px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.2); }
 
-/* TABLE SCROLLBAR */
-.overflow-x-auto::-webkit-scrollbar {
-    height: 4px;
-}
-.overflow-x-auto::-webkit-scrollbar-thumb {
-    background: #e5e7eb;
-    border-radius: 10px;
-}
+.overflow-x-auto::-webkit-scrollbar { height: 6px; }
+.overflow-x-auto::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
 </style>
