@@ -99,8 +99,8 @@ const pageTitle = computed(() => {
                          A
                      </div>
                      <div class="text-left overflow-hidden">
-                         <h3 class="font-bold text-white text-base truncate leading-tight">MMSU Admin</h3>
-                         <p class="text-xs text-white/50 uppercase tracking-tight truncate">Feedback Manager</p>
+                         <h3 class="font-bold text-white text-base truncate leading-tight">Administrator</h3>
+                         <p class="text-xs text-white/50 uppercase tracking-tight truncate">admin</p>
                      </div>
                  </div>
                  <Link 

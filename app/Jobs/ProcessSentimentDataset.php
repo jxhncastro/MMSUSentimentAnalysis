@@ -41,11 +41,17 @@ class ProcessSentimentDataset implements ShouldQueue
 
         try {
             $csv = Reader::createFromPath($this->filePath, 'r');
-            
-            // FIX: Handle potential BOM (Byte Order Mark) from Excel CSVs
             $csv->setHeaderOffset(0);
-            $records = $csv->getRecords();
 
+            // --- 1. PRE-SCAN FOR TOTAL RAW COUNT ---
+            // This ensures the dashboard shows the total CSV lines immediately
+            $totalRawInCsv = count($csv); 
+            $batch->update([
+                'total_rows' => $totalRawInCsv, // Ensure you have this column in your migration
+                'status' => 'processing'
+            ]);
+
+            $records = $csv->getRecords();
             $batchData = [];
             $totalScanned = 0;
             $savedCount = 0;
@@ -80,22 +86,21 @@ class ProcessSentimentDataset implements ShouldQueue
                 }
                 $combinedServices = !empty($services) ? implode(', ', array_unique($services)) : 'Unspecified';
 
-                // 3. Extract Comment (Brute Force Strategy)
+                // 3. Extract Comment
                 $rawText = $row['suggestions on how we can further improve our services'] 
-                           ?? $row['suggestions'] 
-                           ?? $row['comments'] 
-                           ?? $row['feedback'] 
-                           ?? end($record); // Last resort: Take the last column
+                            ?? $row['suggestions'] 
+                            ?? $row['comments'] 
+                            ?? $row['feedback'] 
+                            ?? end($record);
                 
                 $cleanText = $this->cleanText($rawText);
 
-                // 4. Debugging Log (First 5 rows)
-                if ($totalScanned <= 5) {
-                    Log::info("Row {$totalScanned} | Office: {$office} | Text Found: " . substr($cleanText, 0, 50));
-                }
-
-                // 5. SKIP logic
+                // 5. SKIP logic (We still count it as 'scanned' for progress, but don't save)
                 if (empty($cleanText) || strlen($cleanText) < 2 || in_array(strtolower($cleanText), $this->garbagePhrases)) {
+                    // Update progress even on skipped rows so the UI moves
+                    if ($totalScanned % 10 === 0) {
+                        $batch->update(['processed_rows' => $totalScanned]);
+                    }
                     continue; 
                 }
 
@@ -115,6 +120,7 @@ class ProcessSentimentDataset implements ShouldQueue
                     'updated_at'        => now(),
                 ];
 
+                // Chunked Insert for performance
                 if (count($batchData) >= 50) {
                     Feedback::insert($batchData);
                     $savedCount += count($batchData);
@@ -123,13 +129,18 @@ class ProcessSentimentDataset implements ShouldQueue
                 }
             }
 
+            // Final insert for remaining records
             if (!empty($batchData)) {
                 Feedback::insert($batchData);
                 $savedCount += count($batchData);
             }
 
-            $batch->update(['status' => 'completed', 'processed_rows' => $totalScanned]);
-            Log::info("JOB DONE: Scanned {$totalScanned}, Saved {$savedCount}");
+            $batch->update([
+                'status' => 'completed', 
+                'processed_rows' => $totalScanned
+            ]);
+
+            Log::info("JOB DONE: Total CSV Rows: {$totalRawInCsv}, Saved to DB: {$savedCount}");
 
         } catch (\Exception $e) {
             Log::error("SENTIMENT JOB ERROR: " . $e->getMessage());
@@ -174,13 +185,16 @@ class ProcessSentimentDataset implements ShouldQueue
     private function cleanText($text)
     {
         if (empty($text)) return "";
+        // Remove emojis for the model
         $text = preg_replace('/[\x{1F600}-\x{1F64F}]/u', '', $text);
         return trim(preg_replace('/\s+/', ' ', $text));
     }
 
     private function getConfidenceTier($score) {
-        if ($score >= 80) return 'High';
-        if ($score >= 50) return 'Medium';
+        // Handle both 0-1 and 0-100 scales
+        $normalized = $score <= 1 ? $score * 100 : $score;
+        if ($normalized >= 80) return 'High';
+        if ($normalized >= 50) return 'Medium';
         return 'Low';
     }
 }
