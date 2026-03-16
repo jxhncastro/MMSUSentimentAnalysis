@@ -43,37 +43,43 @@ class ProcessSentimentDataset implements ShouldQueue
             $csv = Reader::createFromPath($this->filePath, 'r');
             $csv->setHeaderOffset(0);
 
-            // --- 1. PRE-SCAN FOR TOTAL RAW COUNT ---
-            // This ensures the dashboard shows the total CSV lines immediately
+            // Count the total rows in the CSV before we start
             $totalRawInCsv = count($csv); 
+            
             $batch->update([
-                'total_rows' => $totalRawInCsv, // Ensure you have this column in your migration
-                'status' => 'processing'
+                'total_rows' => $totalRawInCsv,
+                'status' => 'processing',
+                'processed_rows' => 0,
+                'blank_count' => 0,
+                'na_count' => 0,
+                'special_char_count' => 0,
+                'valid_count' => 0
             ]);
 
             $records = $csv->getRecords();
             $batchData = [];
+            
             $totalScanned = 0;
             $savedCount = 0;
+            $blankCount = 0;
+            $naCount = 0;
+            $specialCharCount = 0;
+            $validCount = 0;
 
             foreach ($records as $record) {
                 $totalScanned++;
                 
-                // Clean keys: lowercase, trim, and remove non-printable characters
+                // 1. Clean Headers
                 $row = [];
                 foreach ($record as $key => $value) {
                     $cleanKey = strtolower(trim(preg_replace('/[\x00-\x1F\x7F-\xFF]/', '', $key)));
                     $row[$cleanKey] = $value;
                 }
                 
-                if ($totalScanned === 1) {
-                    Log::info("DEBUG: Cleaned Headers: " . implode('|', array_keys($row)));
-                }
-
-                // 1. Extract Office
+                // 2. Extract Office/Unit
                 $office = $this->findUnitColumn($row);
 
-                // 2. Consolidate Services
+                // 3. Extract and Clean Services
                 $services = [];
                 for ($i = 1; $i <= 44; $i++) {
                     $key = ($i === 1) ? 'service/s availed' : "service/s availed{$i}";
@@ -86,7 +92,7 @@ class ProcessSentimentDataset implements ShouldQueue
                 }
                 $combinedServices = !empty($services) ? implode(', ', array_unique($services)) : 'Unspecified';
 
-                // 3. Extract Comment
+                // 4. Extract Raw Feedback Text
                 $rawText = $row['suggestions on how we can further improve our services'] 
                             ?? $row['suggestions'] 
                             ?? $row['comments'] 
@@ -95,16 +101,36 @@ class ProcessSentimentDataset implements ShouldQueue
                 
                 $cleanText = $this->cleanText($rawText);
 
-                // 5. SKIP logic (We still count it as 'scanned' for progress, but don't save)
-                if (empty($cleanText) || strlen($cleanText) < 2 || in_array(strtolower($cleanText), $this->garbagePhrases)) {
-                    // Update progress even on skipped rows so the UI moves
-                    if ($totalScanned % 10 === 0) {
-                        $batch->update(['processed_rows' => $totalScanned]);
-                    }
-                    continue; 
+                // 5. DATA CLEANING & COUNTING (The "Before" Analysis Logic)
+                $isSkipped = true;
+
+                if (empty($rawText) || trim($rawText) === '') {
+                    $blankCount++;
+                } elseif (in_array(strtolower($cleanText), $this->garbagePhrases)) {
+                    $naCount++;
+                } elseif (strlen(preg_replace('/[^a-zA-Z0-9]/', '', $cleanText)) === 0) {
+                    $specialCharCount++;
+                } elseif (strlen($cleanText) < 2) {
+                    $specialCharCount++; 
+                } else {
+                    $isSkipped = false;
+                    $validCount++;
                 }
 
-                // 6. AI Sentiment Analysis
+                // Update progress every 10 rows for the Frontend Progress Bar
+                if ($totalScanned % 10 === 0) {
+                    $batch->update([
+                        'processed_rows' => $totalScanned,
+                        'blank_count' => $blankCount,
+                        'na_count' => $naCount,
+                        'special_char_count' => $specialCharCount,
+                        'valid_count' => $validCount
+                    ]);
+                }
+
+                if ($isSkipped) continue; 
+
+                // 6. AI Sentiment Analysis (Only for Valid rows)
                 $analysis = $this->analyzeWithAI($cleanText, $office);
 
                 $batchData[] = [
@@ -120,27 +146,30 @@ class ProcessSentimentDataset implements ShouldQueue
                     'updated_at'        => now(),
                 ];
 
-                // Chunked Insert for performance
                 if (count($batchData) >= 50) {
                     Feedback::insert($batchData);
                     $savedCount += count($batchData);
-                    $batch->update(['processed_rows' => $totalScanned]);
                     $batchData = [];
                 }
             }
 
-            // Final insert for remaining records
+            // Insert remaining records
             if (!empty($batchData)) {
                 Feedback::insert($batchData);
                 $savedCount += count($batchData);
             }
 
+            // 7. FINAL COMPLETION SYNC
             $batch->update([
-                'status' => 'completed', 
-                'processed_rows' => $totalScanned
+                'status'             => 'completed', 
+                'processed_rows'     => $totalScanned,
+                'blank_count'        => $blankCount,
+                'na_count'           => $naCount,
+                'special_char_count' => $specialCharCount,
+                'valid_count'        => $validCount
             ]);
 
-            Log::info("JOB DONE: Total CSV Rows: {$totalRawInCsv}, Saved to DB: {$savedCount}");
+            Log::info("JOB DONE: Raw: {$totalRawInCsv}, Valid: {$validCount}, Saved: {$savedCount}");
 
         } catch (\Exception $e) {
             Log::error("SENTIMENT JOB ERROR: " . $e->getMessage());
@@ -152,7 +181,7 @@ class ProcessSentimentDataset implements ShouldQueue
     {
         try {
             $baseUrl = env('AI_MODEL_URL', 'http://localhost:5000');
-            $response = Http::timeout(15)->post($baseUrl . '/predict', [
+            $response = Http::timeout(25)->post($baseUrl . '/predict', [
                 'text' => $text,
                 'aspect' => $aspect
             ]);
@@ -161,7 +190,7 @@ class ProcessSentimentDataset implements ShouldQueue
                 return $response->json();
             }
         } catch (\Exception $e) {
-            Log::warning("Colab AI Unreachable: " . $e->getMessage());
+            Log::warning("AI API Unreachable: " . $e->getMessage());
         }
         return ['sentiment' => 'Neutral', 'confidence' => 0, 'method' => 'Fallback_Offline'];
     }
@@ -185,13 +214,11 @@ class ProcessSentimentDataset implements ShouldQueue
     private function cleanText($text)
     {
         if (empty($text)) return "";
-        // Remove emojis for the model
         $text = preg_replace('/[\x{1F600}-\x{1F64F}]/u', '', $text);
         return trim(preg_replace('/\s+/', ' ', $text));
     }
 
     private function getConfidenceTier($score) {
-        // Handle both 0-1 and 0-100 scales
         $normalized = $score <= 1 ? $score * 100 : $score;
         if ($normalized >= 80) return 'High';
         if ($normalized >= 50) return 'Medium';

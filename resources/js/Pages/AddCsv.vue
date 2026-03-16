@@ -17,7 +17,7 @@ const form = useForm({
 const steps = [
     { title: 'Uploading', icon: '📂' },
     { title: 'Queueing', icon: '⏳' },
-    { title: 'AI Analysis', icon: '🧠' },
+    { title: 'Analyzing', icon: '🧠' },
     { title: 'Finalizing', icon: '📊' }
 ];
 
@@ -131,12 +131,12 @@ onUnmounted(() => clearInterval(pollingInterval));
                     <div class="bg-gray-50 rounded-2xl p-4 mb-8 border border-gray-100">
                         <p class="text-xs text-gray-400 uppercase font-black tracking-widest mb-1">Selected File</p>
                         <p class="font-bold text-[#0c4b33] truncate">{{ form.file.name }}</p>
-                        <p class="text-[10px] text-gray-400 mt-1 font-mono uppercase">{{ (form.file.size / 1024).toFixed(2) }} KB</p>
+                        <p class="text-[12px] text-gray-400 mt-1 font-mono uppercase">{{ (form.file.size / 1024).toFixed(2) }} KB</p>
                     </div>
                     
                     <div class="flex flex-col gap-3">
                         <button @click="submitFile" class="bg-[#0c4b33] text-white py-4 rounded-2xl font-bold hover:bg-black transition shadow-lg uppercase text-xs tracking-widest">
-                            Analyze this Dataset
+                            Analyze Dataset
                         </button>
                         <button @click="cancelConfirmation" class="text-gray-400 py-2 rounded-2xl font-bold hover:text-red-500 transition uppercase text-[10px] tracking-widest">
                             Cancel Selection
@@ -148,7 +148,7 @@ onUnmounted(() => clearInterval(pollingInterval));
                     
                     <h3 class="text-center text-xl font-black mb-10 uppercase tracking-widest transition-colors duration-500"
                         :class="batchProgress?.status === 'completed' ? 'text-green-600' : 'text-[#0c4b33] animate-pulse'">
-                        {{ batchProgress?.status === 'completed' ? 'Analysis Complete!' : `BERT is Analyzing ${batchProgress?.total_rows || 0} Rows...` }}
+                        {{ batchProgress?.status === 'completed' ? 'Analysis Complete!' : `Analyzing ${batchProgress?.total_rows || 0} Rows...` }}
                     </h3>
 
                     <div class="relative flex justify-between items-start mb-12">

@@ -126,7 +126,7 @@ input:-webkit-autofill {
 
 input:-webkit-autofill + label {
     top: -0.6rem !important;
-    font-size: 0.75rem !important;
+    font-size: 0.95rem !important;
     color: #0C4B05 !important;
 }
 </style>

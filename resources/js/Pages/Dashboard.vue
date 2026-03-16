@@ -61,7 +61,7 @@ const operatingUnits = computed(() => Object.keys(unitData).sort());
 const props = defineProps({
     stats: {
         type: Object,
-        default: () => ({ total: 0, positive: 0, negative: 0, neutral: 0 })
+        default: () => ({ total: 0, positive: 0, negative: 0, neutral: 0, total_csv_rows: 0 })
     },
     topPerformers: {
         type: Array,
@@ -78,6 +78,11 @@ const props = defineProps({
     filters: {
         type: Object,
         default: () => ({ search: '', unit: '', sort_sentiment: '' })
+    },
+    // ADD THIS LINE HERE:
+    latestBatch: {
+        type: Object,
+        default: () => ({}) // Default to empty object to prevent "undefined" errors
     }
 });
 
@@ -148,46 +153,18 @@ watch(unitFilter, () => performSearch());
 const form = useForm({});
 
 const submitClear = () => {
-    const swalWithBootstrapButtons = Swal.mixin({
-        customClass: {
-            confirmButton: "mx-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-bold",
-            cancelButton: "mx-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-bold"
-        },
-        buttonsStyling: false
-    });
-
-    swalWithBootstrapButtons.fire({
+    Swal.fire({
         title: "ARE YOU SURE?",
-        text: "This will permanently delete ALL feedback data. This action cannot be undone!",
+        text: "This will permanently delete ALL feedback data.",
         icon: "warning",
         showCancelButton: true,
-        confirmButtonText: "Yes",
-        cancelButtonText: "No",
-        reverseButtons: true
+        confirmButtonText: "Yes, Clear It",
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
     }).then((result) => {
         if (result.isConfirmed) {
             form.post('/clear-data', {
-                preserveScroll: true,
-                onSuccess: () => {
-                    swalWithBootstrapButtons.fire({
-                        title: "System Cleared!",
-                        text: "All data has been removed.",
-                        icon: "success"
-                    });
-                },
-                onError: () => {
-                    swalWithBootstrapButtons.fire({
-                        title: "Error!",
-                        text: "Could not clear data.",
-                        icon: "error"
-                    });
-                }
-            });
-        } else if (result.dismiss === Swal.DismissReason.cancel) {
-            swalWithBootstrapButtons.fire({
-                title: "Cancelled",
-                text: "Your data is safe :)",
-                icon: "error"
+                onSuccess: () => Swal.fire("Cleared!", "System is fresh.", "success")
             });
         }
     });
@@ -247,8 +224,6 @@ const visibleNeedsImprovement = computed(() => {
                 :disabled="form.processing"
                 class="bg-white border border-red-200 text-red-500 hover:bg-red-500 hover:text-white px-5 py-2.5 rounded-xl text-sm font-black uppercase tracking-widest transition flex items-center gap-2 shadow-sm hover:shadow-md cursor-pointer disabled:opacity-50"
             >
-                <span class="text-lg" v-if="!form.processing">🗑️</span>
-                <span class="text-lg animate-spin" v-else>⏳</span>
                 {{ form.processing ? 'Clearing...' : 'Clear All Data' }}
             </button>
         </div>
@@ -288,7 +263,6 @@ const visibleNeedsImprovement = computed(() => {
                         <h3 class="font-black text-xs uppercase tracking-widest text-yellow-400">Excellence Awardees</h3>
                         <p class="text-2xl font-black uppercase">Top Offices</p>
                     </div>
-                    <span class="text-3xl">🏆</span>
                  </div>
                  
                  <div class="space-y-6">
@@ -321,7 +295,6 @@ const visibleNeedsImprovement = computed(() => {
                         <h3 class="font-black text-xs uppercase tracking-widest text-red-500">Action Required</h3>
                         <p class="text-2xl font-black text-gray-800 uppercase leading-tight">Top Offices Needing Improvement</p>
                     </div>
-                    <span class="text-3xl">⚠️</span>
                  </div>
                  
                  <div class="space-y-6">
@@ -485,7 +458,6 @@ const visibleNeedsImprovement = computed(() => {
                         <tr v-if="props.feedback.data.length === 0">
                             <td colspan="5" class="py-12 text-center text-gray-400 italic">
                                 <div class="flex flex-col items-center justify-center gap-2">
-                                    <span class="text-3xl opacity-50">🔍</span>
                                     <span class="text-base">No data found matching your filters.</span>
                                 </div>
                             </td>
@@ -522,7 +494,53 @@ const visibleNeedsImprovement = computed(() => {
                     </Link>
                 </div>
             </div>
+        </div>
+        
+        <br>
+        <div class="bg-white rounded-[25px] p-8 shadow-sm border border-gray-100 mb-8">
+            <div class="mb-6">
+                <h2 class="text-2xl font-black text-[#0c4b33] uppercase tracking-wide">Raw Data Audit</h2>
+                <p class="text-sm text-gray-500 font-bold uppercase tracking-tighter">File Processing Breakdown</p>
+            </div>
 
+            <div class="overflow-hidden border border-gray-100 rounded-xl">
+                <table class="w-full text-left">
+                    <thead class="bg-gray-50 border-b border-gray-100">
+                        <tr class="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                            <th class="py-3 px-6">Metric Category</th>
+                            <th class="py-3 px-6">Raw Count</th>
+                            <th class="py-3 px-6">Status / Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-sm divide-y divide-gray-50">
+                        <tr>
+                            <td class="py-4 px-6 font-bold text-gray-700">Total Rows Uploaded</td>
+                            <td class="py-4 px-6 font-mono font-black text-blue-600">{{ props.latestBatch?.total_rows || 0 }}</td>
+                            <td class="py-4 px-6"><span class="bg-blue-50 text-blue-600 px-2 py-1 rounded-md text-[12px] font-bold uppercase">Source File</span></td>
+                        </tr>
+                        <tr>
+                            <td class="py-4 px-6 font-bold text-gray-700">Empty / Blank Feedback</td>
+                            <td class="py-4 px-6 font-mono font-black text-red-500">{{ props.latestBatch?.blank_count || 0 }}</td>
+                            <td class="py-4 px-6"><span class="bg-red-50 text-red-500 px-2 py-1 rounded-md text-[12px] font-bold uppercase">Discarded</span></td>
+                        </tr>
+                        <tr>
+                            <td class="py-4 px-6 font-bold text-gray-700">Generic Phrases (N/A, None, etc.)</td>
+                            <td class="py-4 px-6 font-mono font-black text-orange-500">{{ props.latestBatch?.na_count || 0 }}</td>
+                            <td class="py-4 px-6"><span class="bg-orange-50 text-orange-500 px-2 py-1 rounded-md text-[12px] font-bold uppercase">Filtered Out</span></td>
+                        </tr>
+                        <tr>
+                            <td class="py-4 px-6 font-bold text-gray-700">Noise (Only Symbols/Special Chars)</td>
+                            <td class="py-4 px-6 font-mono font-black text-purple-500">{{ props.latestBatch?.special_char_count || 0 }}</td>
+                            <td class="py-4 px-6"><span class="bg-purple-50 text-purple-500 px-2 py-1 rounded-md text-[12px] font-bold uppercase">Ignored</span></td>
+                        </tr>
+                        <tr class="bg-green-50/30">
+                            <td class="py-4 px-6 font-black text-[#0c4b33]">Final Valid for Sentiment Analysis</td>
+                            <td class="py-4 px-6 font-mono font-black text-[#0c4b33]">{{ props.latestBatch?.valid_count || 0 }}</td>
+                            <td class="py-4 px-6"><span class="bg-[#0c4b33] text-white px-2 py-1 rounded-md text-[12px] font-bold uppercase shadow-sm">Analyzed</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
 
     </DashboardLayout>

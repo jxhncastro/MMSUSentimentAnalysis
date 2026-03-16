@@ -24,11 +24,17 @@ class DashboardController extends Controller
         $latestBatch = AnalysisBatch::latest()->first();
 
         $stats = [
-            'total_csv_rows' => $latestBatch->total_rows ?? 0, // THE RAW CSV TOTAL
-            'total'          => Feedback::count(),              // THE PROCESSED TOTAL
+            'total_csv_rows' => $latestBatch->total_rows ?? 0, 
+            'total'          => Feedback::count(),              
             'positive'       => Feedback::where('sentiment', 'Positive')->count(),
             'negative'       => Feedback::where('sentiment', 'Negative')->count(),
             'neutral'        => Feedback::where('sentiment', 'Neutral')->count(),
+            
+            // NEW METRICS ADDED HERE
+            'blank_count'        => $latestBatch->blank_count ?? 0,
+            'na_count'           => $latestBatch->na_count ?? 0,
+            'special_char_count' => $latestBatch->special_char_count ?? 0,
+            'valid_count'        => $latestBatch->valid_count ?? 0,
         ];
 
         // 2. EXCELLENCE AWARDEES
@@ -107,7 +113,8 @@ class DashboardController extends Controller
             'topPerformers'    => $topPerformers,
             'needsImprovement' => $needsImprovement,
             'feedback'         => $feedback,
-            'filters'          => $request->only(['search', 'unit', 'sort_sentiment']) 
+            'latestBatch' => \App\Models\AnalysisBatch::latest()->first(),
+            'filters'          => $request->only(['search', 'unit', 'sort_sentiment'])
         ]);
     }
 
