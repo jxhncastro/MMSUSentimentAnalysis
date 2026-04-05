@@ -13,9 +13,11 @@ class Feedback extends Model
 
     protected $fillable = [
         'analysis_batch_id',
-        'operating_unit',
-        'feedback_text',
+        'office',          
+        'services_availed', 
+        'comment',          
         'sentiment',
+        'topic',            
         'confidence',
         'method'
     ];

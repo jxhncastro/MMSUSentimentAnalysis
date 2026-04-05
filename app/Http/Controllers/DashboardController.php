@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Feedback;
-use App\Models\AnalysisBatch; // Added this
+use App\Models\AnalysisBatch;
 use App\Jobs\ProcessSentimentDataset;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,28 +19,48 @@ class DashboardController extends Controller
 
     public function index(Request $request)
     {
-        // 1. GLOBAL STATS
-        // Get the most recent batch to show the Raw CSV total
+        // 0. FETCH AVAILABLE YEARS FOR DROPDOWN
+        $availableYears = Feedback::select('year')
+            ->whereNotNull('year')
+            ->where('year', '!=', '')
+            ->distinct()
+            ->orderBy('year', 'desc')
+            ->pluck('year');
+
+        // Normalize the year filter: Treat null, empty, or "All Years" as a request for all data
+        $selectedYear = ($request->year && $request->year !== 'All Years') ? $request->year : null;
+
+        // 1. GLOBAL STATS (Filtered by Year)
         $latestBatch = AnalysisBatch::latest()->first();
+        
+        $statsQuery = Feedback::query();
+        if ($selectedYear) {
+            $statsQuery->where('year', $selectedYear);
+        }
 
         $stats = [
             'total_csv_rows' => $latestBatch->total_rows ?? 0, 
-            'total'          => Feedback::count(),              
-            'positive'       => Feedback::where('sentiment', 'Positive')->count(),
-            'negative'       => Feedback::where('sentiment', 'Negative')->count(),
-            'neutral'        => Feedback::where('sentiment', 'Neutral')->count(),
+            'total'          => (clone $statsQuery)->count(),               
+            'positive'       => (clone $statsQuery)->where('sentiment', 'Positive')->count(),
+            'negative'       => (clone $statsQuery)->where('sentiment', 'Negative')->count(),
+            'neutral'        => (clone $statsQuery)->where('sentiment', 'Neutral')->count(),
             
-            // NEW METRICS ADDED HERE
+            // Background process stats (specific to the latest upload session)
             'blank_count'        => $latestBatch->blank_count ?? 0,
             'na_count'           => $latestBatch->na_count ?? 0,
             'special_char_count' => $latestBatch->special_char_count ?? 0,
             'valid_count'        => $latestBatch->valid_count ?? 0,
         ];
 
-        // 2. EXCELLENCE AWARDEES
-        $topPerformers = Feedback::select('office')
-            ->whereNotIn(DB::raw('LOWER(TRIM(office))'), $this->excludedUnits)
-            ->selectRaw("COUNT(CASE WHEN sentiment = 'Positive' THEN 1 END) as positive_count")
+        // 2. EXCELLENCE AWARDEES (Filtered by Year)
+        $topPerformersQuery = Feedback::select('office')
+            ->whereNotIn(DB::raw('LOWER(TRIM(office))'), $this->excludedUnits);
+        
+        if ($selectedYear) {
+            $topPerformersQuery->where('year', $selectedYear);
+        }
+
+        $topPerformers = $topPerformersQuery->selectRaw("COUNT(CASE WHEN sentiment = 'Positive' THEN 1 END) as positive_count")
             ->groupBy('office')
             ->orderByDesc('positive_count')
             ->limit(40)
@@ -59,10 +79,15 @@ class DashboardController extends Controller
                 ];
             });
 
-        // 3. ACTION REQUIRED
-        $needsImprovement = Feedback::select('office')
-            ->whereNotIn(DB::raw('LOWER(TRIM(office))'), $this->excludedUnits)
-            ->selectRaw("COUNT(CASE WHEN sentiment = 'Negative' THEN 1 END) as negative_count")
+        // 3. ACTION REQUIRED (Filtered by Year)
+        $needsImprovementQuery = Feedback::select('office')
+            ->whereNotIn(DB::raw('LOWER(TRIM(office))'), $this->excludedUnits);
+
+        if ($selectedYear) {
+            $needsImprovementQuery->where('year', $selectedYear);
+        }
+
+        $needsImprovement = $needsImprovementQuery->selectRaw("COUNT(CASE WHEN sentiment = 'Negative' THEN 1 END) as negative_count")
             ->groupBy('office')
             ->orderByDesc('negative_count')
             ->limit(40)
@@ -76,8 +101,12 @@ class DashboardController extends Controller
                 ];
             });
 
-        // 4. FEEDBACK LIST
+        // 4. FEEDBACK LIST (Filtered by Year, Search, and Unit)
         $query = Feedback::query();
+
+        if ($selectedYear) {
+            $query->where('year', $selectedYear);
+        }
 
         if ($request->search) {
             $query->where(function($q) use ($request) {
@@ -90,16 +119,19 @@ class DashboardController extends Controller
             $query->where('office', $request->unit);
         }
 
+        // Apply Sorting: Priority to Year, then Sentiment or Date
         if ($request->sort_sentiment) {
             $query->orderBy('sentiment', $request->sort_sentiment);
         } else {
-            $query->orderBy('created_at', 'desc');
+            // Priority sorting to keep temporal order
+            $query->orderBy('year', 'desc')->orderBy('created_at', 'desc');
         }
 
-        $feedback = $query->paginate(5)
+        $feedback = $query->paginate(10)
             ->withQueryString()
             ->through(fn ($item) => [
                 'id'               => $item->id,
+                'year'             => $item->year,
                 'operating_unit'   => strtoupper($item->office), 
                 'feedback_text'    => $item->comment, 
                 'services_availed' => $item->services_availed, 
@@ -113,8 +145,9 @@ class DashboardController extends Controller
             'topPerformers'    => $topPerformers,
             'needsImprovement' => $needsImprovement,
             'feedback'         => $feedback,
-            'latestBatch' => \App\Models\AnalysisBatch::latest()->first(),
-            'filters'          => $request->only(['search', 'unit', 'sort_sentiment'])
+            'availableYears'   => $availableYears,
+            'latestBatch'      => $latestBatch,
+            'filters'          => $request->only(['search', 'unit', 'sort_sentiment', 'year'])
         ]);
     }
 
@@ -126,7 +159,6 @@ class DashboardController extends Controller
 
         $path = $request->file('csv_file')->store('temp');
 
-        // Create the Batch record first so the job can update it
         $batch = AnalysisBatch::create([
             'filename' => $request->file('csv_file')->getClientOriginalName(),
             'status' => 'pending',
@@ -134,7 +166,7 @@ class DashboardController extends Controller
             'processed_rows' => 0,
         ]);
 
-        // Dispatch with the required batchId
+        // Note: Ensure your Queue Worker is running: php artisan queue:work
         ProcessSentimentDataset::dispatch(storage_path('app/' . $path), $batch->id);
 
         return back()->with('success', 'File uploaded! Processing in the background...');
@@ -143,7 +175,7 @@ class DashboardController extends Controller
     public function clearData()
     {
         Feedback::truncate();
-        AnalysisBatch::truncate(); // Also clear batches when clearing data
+        AnalysisBatch::truncate();
         return back();
     }
 }

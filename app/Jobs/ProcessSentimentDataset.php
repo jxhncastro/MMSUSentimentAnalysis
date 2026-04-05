@@ -12,6 +12,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use League\Csv\Reader;
+use Carbon\Carbon;
 
 class ProcessSentimentDataset implements ShouldQueue
 {
@@ -43,7 +44,6 @@ class ProcessSentimentDataset implements ShouldQueue
             $csv = Reader::createFromPath($this->filePath, 'r');
             $csv->setHeaderOffset(0);
 
-            // Count the total rows in the CSV before we start
             $totalRawInCsv = count($csv); 
             
             $batch->update([
@@ -76,10 +76,33 @@ class ProcessSentimentDataset implements ShouldQueue
                     $row[$cleanKey] = $value;
                 }
                 
-                // 2. Extract Office/Unit
+                // 2. Extract Year from "Completion time"
+                // Standard format found in your CSV: "1/2/2024  6:37:51 PM"
+                $year = now()->year; 
+                $dateValue = $row['completion time'] ?? $row['start time'] ?? null;
+
+                if (!empty($dateValue)) {
+                    try {
+                        // Normalize whitespace (replaces non-breaking spaces or double spaces with a single space)
+                        $normalizedDate = preg_replace('/\s+/', ' ', trim($dateValue));
+                        
+                        // Explicitly parse the format M/d/Y h:i:s A
+                        // 'n' = month (1-12), 'j' = day (1-31), 'Y' = year (2024), 'g' = hour (1-12), 'i' = min, 's' = sec, 'A' = AM/PM
+                        $year = Carbon::createFromFormat('n/j/Y g:i:s A', $normalizedDate)->year;
+                    } catch (\Exception $e) {
+                        try {
+                            // Fallback to standard Carbon parsing
+                            $year = Carbon::parse($dateValue)->year;
+                        } catch (\Exception $e2) {
+                            Log::warning("Date parse failed for: " . $dateValue);
+                        }
+                    }
+                }
+
+                // 3. Extract Office/Unit
                 $office = $this->findUnitColumn($row);
 
-                // 3. Extract and Clean Services
+                // 4. Extract and Clean Services
                 $services = [];
                 for ($i = 1; $i <= 44; $i++) {
                     $key = ($i === 1) ? 'service/s availed' : "service/s availed{$i}";
@@ -92,7 +115,7 @@ class ProcessSentimentDataset implements ShouldQueue
                 }
                 $combinedServices = !empty($services) ? implode(', ', array_unique($services)) : 'Unspecified';
 
-                // 4. Extract Raw Feedback Text
+                // 5. Extract Raw Feedback Text
                 $rawText = $row['suggestions on how we can further improve our services'] 
                             ?? $row['suggestions'] 
                             ?? $row['comments'] 
@@ -101,7 +124,7 @@ class ProcessSentimentDataset implements ShouldQueue
                 
                 $cleanText = $this->cleanText($rawText);
 
-                // 5. DATA CLEANING & COUNTING (The "Before" Analysis Logic)
+                // 6. DATA CLEANING & COUNTING
                 $isSkipped = true;
 
                 if (empty($rawText) || trim($rawText) === '') {
@@ -117,7 +140,7 @@ class ProcessSentimentDataset implements ShouldQueue
                     $validCount++;
                 }
 
-                // Update progress every 10 rows for the Frontend Progress Bar
+                // Update progress every 10 rows
                 if ($totalScanned % 10 === 0) {
                     $batch->update([
                         'processed_rows' => $totalScanned,
@@ -130,12 +153,13 @@ class ProcessSentimentDataset implements ShouldQueue
 
                 if ($isSkipped) continue; 
 
-                // 6. AI Sentiment Analysis (Only for Valid rows)
+                // 7. AI Sentiment Analysis
                 $analysis = $this->analyzeWithAI($cleanText, $office);
 
                 $batchData[] = [
                     'analysis_batch_id' => $this->batchId,
                     'office'            => trim($office),
+                    'year'              => $year, 
                     'services_availed'  => $combinedServices,
                     'comment'           => $cleanText,
                     'sentiment'         => ucfirst($analysis['sentiment']),
@@ -153,13 +177,12 @@ class ProcessSentimentDataset implements ShouldQueue
                 }
             }
 
-            // Insert remaining records
             if (!empty($batchData)) {
                 Feedback::insert($batchData);
                 $savedCount += count($batchData);
             }
 
-            // 7. FINAL COMPLETION SYNC
+            // 8. FINAL COMPLETION SYNC
             $batch->update([
                 'status'             => 'completed', 
                 'processed_rows'     => $totalScanned,
