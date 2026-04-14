@@ -79,7 +79,7 @@ class DashboardController extends Controller
             $query->orderBy('year', 'desc')->orderBy('created_at', 'desc');
         }
 
-        $feedback = $query->paginate(10)->withQueryString()->through(fn ($item) => [
+        $feedback = $query->paginate(5)->withQueryString()->through(fn ($item) => [
             'id'               => $item->id,
             'year'             => $item->year,
             'operating_unit'   => strtoupper($item->office), 
@@ -105,61 +105,74 @@ class DashboardController extends Controller
     /**
      * NEW EXPORT FEATURE
      */
-    public function export(Request $request)
-    {
-        $query = Feedback::query();
+public function export(Request $request)
+{
+    $query = Feedback::query();
 
-        // Apply same filters as the dashboard view
-        if ($request->year && $request->year !== 'All Years') { 
-            $query->where('year', $request->year); 
-        }
-        if ($request->search) {
-            $query->where(function($q) use ($request) {
-                $q->where('comment', 'like', '%'.$request->search.'%')
-                  ->orWhere('office', 'like', '%'.$request->search.'%');
-            });
-        }
-        if ($request->unit) { 
-            $query->where('office', $request->unit); 
-        }
-        
-        // The specific sentiment we want to export (e.g., 'Negative')
-        if ($request->sentiment) {
-            $query->where('sentiment', $request->sentiment);
-        }
-
-        $records = $query->orderBy('created_at', 'desc')->get();
-        $sentimentLabel = $request->sentiment ?? 'All';
-        $fileName = "MMSU_Feedback_{$sentimentLabel}_" . now()->format('Ymd_His') . ".csv";
-
-        $headers = [
-            "Content-type"        => "text/csv",
-            "Content-Disposition" => "attachment; filename=$fileName",
-            "Pragma"              => "no-cache",
-            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
-            "Expires"             => "0"
-        ];
-
-        $callback = function() use ($records) {
-            $file = fopen('php://output', 'w');
-            // Header Row
-            fputcsv($file, ['Year', 'Operating Unit', 'Services Availed', 'Feedback Text', 'Sentiment', 'Confidence']);
-
-            foreach ($records as $row) {
-                fputcsv($file, [
-                    $row->year,
-                    strtoupper($row->office),
-                    $row->services_availed,
-                    $row->comment,
-                    $row->sentiment,
-                    $row->confidence . '%'
-                ]);
-            }
-            fclose($file);
-        };
-
-        return response()->stream($callback, 200, $headers);
+    // Apply filters
+    if ($request->year && $request->year !== 'All Years') { 
+        $query->where('year', $request->year); 
     }
+    if ($request->search) {
+        $query->where(function($q) use ($request) {
+            $q->where('comment', 'like', '%'.$request->search.'%')
+              ->orWhere('office', 'like', '%'.$request->search.'%');
+        });
+    }
+    if ($request->unit) { 
+        $query->where('office', $request->unit); 
+    }
+    if ($request->sentiment) {
+        $query->where('sentiment', $request->sentiment);
+    }
+
+    $records = $query->orderBy('created_at', 'desc')->get();
+    $sentimentLabel = $request->sentiment ?? 'All';
+    $fileName = "MMSU_Feedback_{$sentimentLabel}_" . now()->format('Ymd_His') . ".csv";
+
+    $headers = [
+        "Content-type"        => "text/csv",
+        "Content-Disposition" => "attachment; filename=$fileName",
+        "Pragma"              => "no-cache",
+        "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
+        "Expires"             => "0"
+    ];
+
+    $callback = function() use ($records) {
+        $file = fopen('php://output', 'w');
+        
+        // Add BOM for Excel UTF-8 compatibility
+        fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
+
+        // Header Row
+        fputcsv($file, ['Year', 'Operating Unit', 'Services Availed', 'Feedback', 'Sentiment']);
+
+        foreach ($records as $row) {
+            // --- UPDATED CLEANING LOGIC ---
+            // 1. Split by either a semicolon or a comma (where the survey noise usually starts)
+            // 2. Take the very first part (the actual service name)
+            $parts = preg_split('/[;,]/', $row->services_availed);
+            $cleanService = $parts[0];
+
+            // 3. Remove that weird "Â" character just in case it's in the first part
+            $cleanService = str_replace('Â', '', $cleanService);
+
+            // 4. Final trim for whitespace
+            $cleanService = trim($cleanService);
+
+            fputcsv($file, [
+                $row->year,
+                strtoupper($row->office),
+                $cleanService, // Now strictly the service name
+                $row->comment,
+                $row->sentiment
+            ]);
+        }
+        fclose($file);
+    };
+
+    return response()->stream($callback, 200, $headers);
+}
 
     public function addCsv(Request $request)
     {
