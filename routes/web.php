@@ -17,7 +17,6 @@ Route::post('/login', [LoginController::class, 'store'])->name('login.store');
 
 
 // --- 2. PROTECTED ROUTES (Login required) ---
-// Everything inside this group requires the user to have the 'authenticated' session
 Route::middleware(['custom.auth'])->group(function () {
 
     Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
@@ -25,6 +24,9 @@ Route::middleware(['custom.auth'])->group(function () {
     // Analytics Dashboards
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/operating-units', [OperatingUnitController::class, 'index'])->name('operating-units');
+
+    // --- NEW EXPORT ROUTE ---
+    Route::get('/dashboard/export', [DashboardController::class, 'export'])->name('dashboard.export');
 
     // Data Management
     Route::get('/add-csv', function () {

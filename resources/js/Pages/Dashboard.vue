@@ -6,6 +6,24 @@ import debounce from 'lodash/debounce';
 import Swal from 'sweetalert2';
 import axios from 'axios'; 
 
+const selectedSentiment = ref(''); // Default to all
+// --- NEW EXPORT FUNCTION ---
+const exportData = (sentiment = null) => {
+    // We build the URL using the current state of our filters
+    const params = new URLSearchParams({
+        year: yearFilter.value === '' ? 'All Years' : yearFilter.value,
+        search: search.value,
+        unit: unitFilter.value,
+    });
+
+    if (sentiment) {
+        params.append('sentiment', sentiment);
+    }
+
+    // Trigger the download by redirecting the browser to the export route
+    window.location.href = `/dashboard/export?${params.toString()}`;
+};
+
 // --- 1. OPERATING UNITS DATA ---
 const unitData = {
     "Accounting Office": [], "Administrative Service Division ": [], "Alumni Relations Office": [],
@@ -281,20 +299,37 @@ const visibleNeedsImprovement = computed(() => {
             </div>
 
             <div class="bg-white rounded-[25px] p-8 shadow-sm border border-gray-100 font-sans">
-                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                    <div>
-                        <h2 class="text-3xl font-black text-[#0c4b33] tracking-wide uppercase">Datasets</h2>
-                        <div class="flex items-center gap-3 mt-1">
-                            <p class="text-sm text-gray-500 font-bold">Processed review data.</p>
+                <div class="flex items-center gap-3">
+                      <div>
+                        <h2 class="text-3xl font-black text-[#0c4b33] uppercase tracking-wide">datasets</h2>
+                    </div>
+                    <div class="relative">
+                        <select v-model="selectedSentiment" 
+                            class="appearance-none bg-gray-50 border border-gray-200 text-gray-700 text-xs font-bold py-2 pl-3 pr-8 rounded-xl focus:ring-1 focus:ring-[#0c4b33] cursor-pointer">
+                            <option value="">All Sentiments</option>
+                            <option value="Positive">Positive Only</option>
+                            <option value="Negative">Negative Only</option>
+                            <option value="Neutral">Neutral Only</option>
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
                         </div>
                     </div>
-                    
-                    <button @click="refreshData" :disabled="isRefreshing"
-                        class="flex items-center gap-2 px-4 py-2 bg-white hover:bg-gray-50 text-gray-600 text-sm font-bold rounded-xl border border-gray-200 transition shadow-sm disabled:opacity-50">
-                        <svg v-if="isRefreshing" class="animate-spin h-4 w-4 text-[#0c4b33]" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                        <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                        <span>{{ isRefreshing ? 'Refreshing...' : 'Refresh' }}</span>
+
+                    <button @click="exportData(selectedSentiment)"
+                        class="flex items-center gap-2 px-4 py-2 bg-[#0c4b33] text-white text-sm font-bold rounded-xl hover:bg-[#093a27] transition shadow-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        <span>Export CSV</span>
                     </button>
+
+                    <button @click="refreshData" :disabled="isRefreshing"
+                    class="flex items-center gap-2 px-4 py-2 bg-white hover:bg-gray-50 text-gray-600 text-sm font-bold rounded-xl border border-gray-200 transition shadow-sm disabled:opacity-50">
+                    <svg v-if="isRefreshing" class="animate-spin h-4 w-4 text-[#0c4b33]" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                    <span>{{ isRefreshing ? 'Refreshing...' : 'Refresh' }}</span>
+                </button>
                 </div>
 
                 <div class="flex flex-col md:flex-row gap-4 mb-4">
