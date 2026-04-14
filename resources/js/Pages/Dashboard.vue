@@ -239,7 +239,7 @@ const visibleNeedsImprovement = computed(() => {
                                 <div class="bg-white/20 w-10 h-10 rounded-full flex items-center justify-center text-white font-black text-sm shadow-sm">{{ i + 1 }}</div>
                                 <div>
                                     <div class="text-sm font-black uppercase tracking-tight">{{ item.unit }}</div>
-                                    <div class="text-xs opacity-70">Highest Satisfaction Rating</div>
+                                    <!-- <div class="text-xs opacity-70">Highest Satisfaction Rating</div> -->
                                 </div>
                             </div>
                             <span class="text-base font-black text-yellow-400">{{ item.score }}</span>

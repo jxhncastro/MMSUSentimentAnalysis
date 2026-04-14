@@ -20,6 +20,10 @@ const props = defineProps({
         type: Array,
         default: () => []
     },
+    availableYears: {
+        type: Array,
+        default: () => []
+    },
     filters: Object
 });
 
@@ -206,6 +210,7 @@ const operatingUnits = Object.keys(unitData).sort();
 
 const selectedUnit = ref(props.filters?.unit || ""); 
 const selectedService = ref(props.filters?.service || "All Services");
+const selectedYear = ref(props.filters?.year || ""); // Added Year state
 const isLoading = ref(false); 
 
 const services = computed(() => {
@@ -254,16 +259,11 @@ const maxTopicCount = computed(() => {
 
 // --- FILTER HANDLING ---
 const fetchFilteredData = debounce(() => {
-    // Dynamically build params so we don't send null/empty strings to the backend
     let params = {};
-    if (selectedUnit.value) {
-        params.unit = selectedUnit.value;
-    }
-    if (selectedService.value && selectedService.value !== "All Services") {
-        params.service = selectedService.value;
-    }
+    if (selectedUnit.value) params.unit = selectedUnit.value;
+    if (selectedService.value && selectedService.value !== "All Services") params.service = selectedService.value;
+    if (selectedYear.value) params.year = selectedYear.value; // Added year to params
 
-    // Use window.location.pathname so it always hits the correct route
     router.get(window.location.pathname, params, {
         preserveState: true,
         preserveScroll: true,
@@ -273,7 +273,7 @@ const fetchFilteredData = debounce(() => {
     });
 }, 300);
 
-// Watcher: Only reset and fetch if the Unit ACTUALLY changes
+// Watch for unit change
 watch(selectedUnit, (newVal, oldVal) => {
     if (newVal !== oldVal) {
         selectedService.value = "All Services";
@@ -281,7 +281,11 @@ watch(selectedUnit, (newVal, oldVal) => {
     }
 });
 
-// Fetch data when a specific service is clicked
+// Watch for year change
+watch(selectedYear, () => {
+    fetchFilteredData();
+});
+
 const selectService = (service) => {
     if (selectedService.value !== service) {
         selectedService.value = service;
@@ -289,10 +293,10 @@ const selectService = (service) => {
     }
 };
 
-// Sync state if user uses browser Back/Forward buttons
 watch(() => props.filters, (newFilters) => {
     selectedUnit.value = newFilters?.unit || "";
     selectedService.value = newFilters?.service || "All Services";
+    selectedYear.value = newFilters?.year || "";
 }, { deep: true });
 
 </script>
@@ -309,21 +313,37 @@ watch(() => props.filters, (newFilters) => {
                         {{ selectedUnit ? 'Operating Unit Analysis' : 'Global Analytics' }}
                     </h2>
                     <p class="text-sm text-gray-500 font-medium italic">
-                        Viewing analytics for: <span class="text-yellow-600 font-bold">{{ selectedUnit || 'All Operating Units' }}</span>
+                        Viewing: <span class="text-yellow-600 font-bold">{{ selectedUnit || 'All Units' }}</span> 
+                        <span v-if="selectedYear"> | Year: <span class="text-yellow-600 font-bold">{{ selectedYear }}</span></span>
                     </p>
                 </div>
                 
-                <div class="flex items-center gap-3 bg-white p-3 px-5 rounded-2xl shadow-sm border border-gray-100 transition-all hover:shadow-md">
-                    <label class="text-xs font-black text-gray-400 uppercase">Switch Unit</label>
-                    <select 
-                        v-model="selectedUnit" 
-                        class="border-none bg-transparent focus:ring-0 text-base font-bold text-gray-700 min-w-[300px] cursor-pointer"
-                    >
-                        <option value="">All Operating Units</option>
-                        <option v-for="unit in operatingUnits" :key="unit" :value="unit">
-                            {{ unit }}
-                        </option>
-                    </select>
+                <div class="flex flex-wrap items-center gap-4">
+                    <div class="flex items-center gap-3 bg-white p-3 px-5 rounded-2xl shadow-sm border border-gray-100 transition-all hover:shadow-md">
+                        <label class="text-xs font-black text-gray-400 uppercase">Year</label>
+                        <select 
+                            v-model="selectedYear" 
+                            class="border-none bg-transparent focus:ring-0 text-base font-bold text-gray-700 min-w-[100px] cursor-pointer"
+                        >
+                            <option value="">All Years</option>
+                            <option v-for="year in props.availableYears" :key="year" :value="year">
+                                {{ year }}
+                            </option>
+                        </select>
+                    </div>
+
+                    <div class="flex items-center gap-3 bg-white p-3 px-5 rounded-2xl shadow-sm border border-gray-100 transition-all hover:shadow-md">
+                        <label class="text-xs font-black text-gray-400 uppercase">Unit</label>
+                        <select 
+                            v-model="selectedUnit" 
+                            class="border-none bg-transparent focus:ring-0 text-base font-bold text-gray-700 min-w-[250px] cursor-pointer"
+                        >
+                            <option value="">All Operating Units</option>
+                            <option v-for="unit in operatingUnits" :key="unit" :value="unit">
+                                {{ unit }}
+                            </option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
@@ -380,7 +400,7 @@ watch(() => props.filters, (newFilters) => {
                                 <span class="text-xs font-black text-gray-500 uppercase">Neu: {{ formatNum(props.charts?.overall_sentiment?.Neutral) }}</span>
                             </div>
                             <div class="flex items-center gap-2">
-                                <span class="w-4 h-4 bg-[#DE1900]rounded-full shadow-sm"></span> 
+                                <span class="w-4 h-4 bg-[#ef4444] rounded-full shadow-sm"></span> 
                                 <span class="text-xs font-black text-gray-500 uppercase">Neg: {{ formatNum(props.charts?.overall_sentiment?.Negative) }}</span>
                             </div>
                         </div>
@@ -394,7 +414,7 @@ watch(() => props.filters, (newFilters) => {
                             
                             <div class="flex-1 flex flex-col gap-6">
                                 <div v-if="Object.keys(props.charts?.sentiment_by_topic || {}).length === 0" class="flex-1 flex items-center justify-center text-gray-300 text-sm italic">
-                                    No topic data available for this unit.
+                                    No topic data available.
                                 </div>
 
                                 <div v-for="(counts, topic) in props.charts.sentiment_by_topic" :key="topic" class="group relative cursor-default">
@@ -420,7 +440,7 @@ watch(() => props.filters, (newFilters) => {
 
                         <div v-else class="flex-1 flex flex-col">
                             <h3 class="text-center font-bold text-red-500 text-xs uppercase tracking-[0.2em] mb-8 sticky top-0 bg-white z-10 pb-2">
-                                 TOP OFFICES NEEDING IMPROVEMENT
+                                  TOP OFFICES NEEDING IMPROVEMENT
                             </h3>
                             <div class="space-y-6">
                                 <div v-for="(item, i) in props.charts.top_negative" :key="i" class="flex items-center gap-4 group">
@@ -454,7 +474,6 @@ watch(() => props.filters, (newFilters) => {
                     <div class="transition-all duration-300 rounded-[25px] p-6 shadow-sm flex flex-col justify-between h-36 hover:scale-105 hover:shadow-md cursor-default bg-[#0C4B05] text-white">
                         <div class="flex justify-between items-start">
                             <div class="text-[11px] opacity-80 uppercase font-black tracking-wider leading-tight text-green-100">Positive</div>
-                            <span class="text-base opacity-80"></span>
                         </div>
                         <div class="text-4xl font-black">{{ formatNum(props.charts?.overall_sentiment?.Positive) }}</div>
                     </div>
@@ -462,7 +481,6 @@ watch(() => props.filters, (newFilters) => {
                     <div class="transition-all duration-300 rounded-[25px] p-6 shadow-sm flex flex-col justify-between h-36 hover:scale-105 hover:shadow-md cursor-default bg-red-500 text-white">
                         <div class="flex justify-between items-start">
                             <div class="text-[11px] opacity-80 uppercase font-black tracking-wider leading-tight text-red-100">Negative</div>
-                            <span class="text-base opacity-80"></span>
                         </div>
                         <div class="text-4xl font-black">{{ formatNum(props.charts?.overall_sentiment?.Negative) }}</div>
                     </div>
@@ -470,65 +488,18 @@ watch(() => props.filters, (newFilters) => {
                     <div class="transition-all duration-300 rounded-[25px] p-6 shadow-sm flex flex-col justify-between h-36 hover:scale-105 hover:shadow-md cursor-default bg-yellow-400 text-white">
                         <div class="flex justify-between items-start">
                             <div class="text-[11px] opacity-80 uppercase font-black tracking-wider leading-tight text-yellow-100">Neutral</div>
-                            <span class="text-base opacity-80"></span>
                         </div>
                         <div class="text-4xl font-black drop-shadow-sm">{{ formatNum(props.charts?.overall_sentiment?.Neutral) }}</div>
                     </div>
                 </div>
-
-                <!-- <div class="bg-white rounded-[25px] shadow-sm border border-gray-100 overflow-hidden mb-6 flex flex-col">
-                    <div class="p-6 pb-4 border-b border-gray-50">
-                        <h3 class="font-bold text-gray-400 text-xs uppercase tracking-[0.2em]">
-                             LATEST FEEDBACK FOR {{ selectedUnit ? selectedUnit.toUpperCase() : 'ALL UNITS' }}
-                        </h3>
-                    </div>
-                    
-                    <div class="overflow-x-auto p-4">
-                        <table class="w-full text-left">
-                            <thead class="bg-gray-50/50">
-                                <tr class="text-xs font-black text-gray-400 uppercase tracking-wider">
-                                    <th class="py-4 pl-4 rounded-l-lg">Office</th>
-                                    <th class="py-4">Feedback</th>
-                                    <th class="py-4">Topic</th>
-                                    <th class="py-4 text-right pr-4 rounded-r-lg">Sentiment</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-50">
-                                <tr v-for="row in props.recent_feedback" :key="row.id" class="group hover:bg-gray-50 transition-colors">
-                                    <td class="py-5 pl-4 font-bold text-gray-700 text-sm whitespace-nowrap">{{ row.office }}</td>
-                                    <td class="py-5 max-w-lg text-gray-600 text-sm pr-8 leading-relaxed">
-                                        <span class="text-gray-400 mr-1">"</span>{{ row.comment }}<span class="text-gray-400 ml-1">"</span>
-                                    </td>
-                                    <td class="py-5">
-                                        <span class="bg-gray-100 text-gray-600 px-3 py-1.5 rounded text-[11px] font-bold uppercase tracking-wider border border-gray-200 shadow-sm">{{ row.topic }}</span>
-                                    </td>
-                                    <td class="py-5 text-right pr-4">
-                                        <span class="inline-block px-3 py-1.5 rounded-md text-xs font-black uppercase tracking-wider shadow-sm border"
-                                              :class="{
-                                                  'bg-green-50 text-green-700 border-green-200': row.sentiment === 'Positive',
-                                                  'bg-red-50 text-red-700 border-red-200': row.sentiment === 'Negative',
-                                                  'bg-yellow-50 text-yellow-700 border-yellow-200': row.sentiment === 'Neutral'
-                                              }">
-                                            {{ row.sentiment }}
-                                        </span>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div> -->
             </div>
         </div>
     </DashboardLayout>
 </template>
 
 <style scoped>
-/* Scoped styles for custom UI elements */
 .custom-scrollbar::-webkit-scrollbar { width: 8px; }
 .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
 .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.1); border-radius: 10px; }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.2); }
-
-.overflow-x-auto::-webkit-scrollbar { height: 6px; }
-.overflow-x-auto::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
 </style>

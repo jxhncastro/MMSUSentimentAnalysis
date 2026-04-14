@@ -67,122 +67,121 @@ class ProcessSentimentDataset implements ShouldQueue
             $validCount = 0;
 
             foreach ($records as $record) {
-                $totalScanned++;
-                
-                // 1. Clean Headers
-                $row = [];
-                foreach ($record as $key => $value) {
-                    $cleanKey = strtolower(trim(preg_replace('/[\x00-\x1F\x7F-\xFF]/', '', $key)));
-                    $row[$cleanKey] = $value;
-                }
-                
-                // 2. Extract Year from "Completion time"
-                // Standard format found in your CSV: "1/2/2024  6:37:51 PM"
-                $year = now()->year; 
-                $dateValue = $row['completion time'] ?? $row['start time'] ?? null;
+                // WRAP EVERY ROW IN A TRY-CATCH so one bad row doesn't kill the whole 407-row job
+                try {
+                    $totalScanned++;
+                    
+                    // 1. Aggressive Header Cleaning
+                    $row = [];
+                    foreach ($record as $key => $value) {
+                        // Remove all non-printable and non-ascii to fix hidden Excel chars
+                        $cleanKey = strtolower(trim(preg_replace('/[^[:print:]]/', '', $key)));
+                        $row[$cleanKey] = $value;
+                    }
+                    
+                    // 2. Extract Year
+                    $year = now()->year; 
+                    $dateValue = $row['completion time'] ?? $row['start time'] ?? null;
 
-                if (!empty($dateValue)) {
-                    try {
-                        // Normalize whitespace (replaces non-breaking spaces or double spaces with a single space)
-                        $normalizedDate = preg_replace('/\s+/', ' ', trim($dateValue));
-                        
-                        // Explicitly parse the format M/d/Y h:i:s A
-                        // 'n' = month (1-12), 'j' = day (1-31), 'Y' = year (2024), 'g' = hour (1-12), 'i' = min, 's' = sec, 'A' = AM/PM
-                        $year = Carbon::createFromFormat('n/j/Y g:i:s A', $normalizedDate)->year;
-                    } catch (\Exception $e) {
+                    if (!empty($dateValue)) {
                         try {
-                            // Fallback to standard Carbon parsing
-                            $year = Carbon::parse($dateValue)->year;
-                        } catch (\Exception $e2) {
+                            $normalizedDate = preg_replace('/\s+/', ' ', trim($dateValue));
+                            $year = Carbon::parse($normalizedDate)->year;
+                        } catch (\Exception $e) {
                             Log::warning("Date parse failed for: " . $dateValue);
                         }
                     }
-                }
 
-                // 3. Extract Office/Unit
-                $office = $this->findUnitColumn($row);
+                    // 3. Extract Office/Unit
+                    $office = $this->findUnitColumn($row);
 
-                // 4. Extract and Clean Services
-                $services = [];
-                for ($i = 1; $i <= 44; $i++) {
-                    $key = ($i === 1) ? 'service/s availed' : "service/s availed{$i}";
-                    if (!empty($row[$key])) {
-                        $val = trim($row[$key]);
-                        if ($val !== '' && !in_array(strtolower($val), ['n/a', 'na', 'none'])) {
-                            $services[] = $val;
+                    // 4. Robust Services Extraction
+                    $services = [];
+                    foreach($row as $k => $v) {
+                        if (str_contains($k, 'service') && str_contains($k, 'avail')) {
+                            $val = trim($v);
+                            if (!empty($val) && !in_array(strtolower($val), ['n/a', 'na', 'none'])) {
+                                $services[] = $val;
+                            }
                         }
                     }
-                }
-                $combinedServices = !empty($services) ? implode(', ', array_unique($services)) : 'Unspecified';
+                    $combinedServices = !empty($services) ? implode(', ', array_unique($services)) : 'Unspecified';
 
-                // 5. Extract Raw Feedback Text
-                $rawText = $row['suggestions on how we can further improve our services'] 
-                            ?? $row['suggestions'] 
-                            ?? $row['comments'] 
-                            ?? $row['feedback'] 
-                            ?? end($record);
-                
-                $cleanText = $this->cleanText($rawText);
+                    // 5. Extract Raw Feedback Text
+                    $rawText = $row['suggestions on how we can further improve our services'] 
+                                ?? $row['suggestions on how we can further improve our service/s']
+                                ?? $row['suggestions'] 
+                                ?? $row['comments'] 
+                                ?? $row['feedback'] 
+                                ?? end($record);
+                    
+                    $cleanText = $this->cleanText($rawText);
 
-                // 6. DATA CLEANING & COUNTING
-                $isSkipped = true;
+                    // 6. Data Cleaning & Counting
+                    $isSkipped = true;
+                    if (empty($rawText) || trim($rawText) === '') {
+                        $blankCount++;
+                    } elseif (in_array(strtolower($cleanText), $this->garbagePhrases)) {
+                        $naCount++;
+                    } elseif (strlen(preg_replace('/[^a-zA-Z0-9]/', '', $cleanText)) === 0) {
+                        $specialCharCount++;
+                    } elseif (strlen($cleanText) < 2) {
+                        $specialCharCount++; 
+                    } else {
+                        $isSkipped = false;
+                        $validCount++;
+                    }
 
-                if (empty($rawText) || trim($rawText) === '') {
-                    $blankCount++;
-                } elseif (in_array(strtolower($cleanText), $this->garbagePhrases)) {
-                    $naCount++;
-                } elseif (strlen(preg_replace('/[^a-zA-Z0-9]/', '', $cleanText)) === 0) {
-                    $specialCharCount++;
-                } elseif (strlen($cleanText) < 2) {
-                    $specialCharCount++; 
-                } else {
-                    $isSkipped = false;
-                    $validCount++;
-                }
+                    // Sync progress to DB every 10 rows
+                    if ($totalScanned % 10 === 0) {
+                        $batch->update([
+                            'processed_rows' => $totalScanned,
+                            'blank_count' => $blankCount,
+                            'na_count' => $naCount,
+                            'special_char_count' => $specialCharCount,
+                            'valid_count' => $validCount
+                        ]);
+                    }
 
-                // Update progress every 10 rows
-                if ($totalScanned % 10 === 0) {
-                    $batch->update([
-                        'processed_rows' => $totalScanned,
-                        'blank_count' => $blankCount,
-                        'na_count' => $naCount,
-                        'special_char_count' => $specialCharCount,
-                        'valid_count' => $validCount
-                    ]);
-                }
+                    if ($isSkipped) continue; 
 
-                if ($isSkipped) continue; 
+                    // 7. AI Sentiment Analysis
+                    $analysis = $this->analyzeWithAI($cleanText, $office);
 
-                // 7. AI Sentiment Analysis
-                $analysis = $this->analyzeWithAI($cleanText, $office);
+                    $batchData[] = [
+                        'analysis_batch_id' => $this->batchId,
+                        'office'            => trim($office),
+                        'year'              => $year, 
+                        'services_availed'  => $combinedServices,
+                        'comment'           => mb_strcut($cleanText, 0, 500), // Prevent DB overflow
+                        'sentiment'         => ucfirst($analysis['sentiment']),
+                        'topic'             => $analysis['theme'] ?? $analysis['aspect'] ?? 'General',
+                        'confidence'        => $this->getConfidenceTier($analysis['confidence']),
+                        'method'            => $analysis['method'],
+                        'created_at'        => now(),
+                        'updated_at'        => now(),
+                    ];
 
-                $batchData[] = [
-                    'analysis_batch_id' => $this->batchId,
-                    'office'            => trim($office),
-                    'year'              => $year, 
-                    'services_availed'  => $combinedServices,
-                    'comment'           => $cleanText,
-                    'sentiment'         => ucfirst($analysis['sentiment']),
-                    'topic'             => $analysis['theme'] ?? $analysis['aspect'] ?? 'General',
-                    'confidence'        => $this->getConfidenceTier($analysis['confidence']),
-                    'method'            => $analysis['method'],
-                    'created_at'        => now(),
-                    'updated_at'        => now(),
-                ];
+                    // Insert in small chunks to keep memory low
+                    if (count($batchData) >= 5) {
+                        Feedback::insert($batchData);
+                        $savedCount += count($batchData);
+                        $batchData = [];
+                    }
 
-                if (count($batchData) >= 50) {
-                    Feedback::insert($batchData);
-                    $savedCount += count($batchData);
-                    $batchData = [];
+                } catch (\Exception $rowException) {
+                    Log::error("Error on Row {$totalScanned}: " . $rowException->getMessage());
+                    continue; // Skip the bad row and keep going!
                 }
             }
 
+            // Final batch insert
             if (!empty($batchData)) {
                 Feedback::insert($batchData);
                 $savedCount += count($batchData);
             }
 
-            // 8. FINAL COMPLETION SYNC
+            // 8. Final Completion
             $batch->update([
                 'status'             => 'completed', 
                 'processed_rows'     => $totalScanned,
@@ -192,10 +191,10 @@ class ProcessSentimentDataset implements ShouldQueue
                 'valid_count'        => $validCount
             ]);
 
-            Log::info("JOB DONE: Raw: {$totalRawInCsv}, Valid: {$validCount}, Saved: {$savedCount}");
+            Log::info("JOB FINISHED: Total: {$totalScanned}, Saved: {$savedCount}");
 
         } catch (\Exception $e) {
-            Log::error("SENTIMENT JOB ERROR: " . $e->getMessage());
+            Log::error("CRITICAL JOB FAILURE: " . $e->getMessage());
             $batch->update(['status' => 'failed']);
         }
     }
@@ -204,7 +203,7 @@ class ProcessSentimentDataset implements ShouldQueue
     {
         try {
             $baseUrl = env('AI_MODEL_URL', 'http://localhost:5000');
-            $response = Http::timeout(25)->post($baseUrl . '/predict', [
+            $response = Http::timeout(45)->post($baseUrl . '/predict', [
                 'text' => $text,
                 'aspect' => $aspect
             ]);
@@ -213,7 +212,7 @@ class ProcessSentimentDataset implements ShouldQueue
                 return $response->json();
             }
         } catch (\Exception $e) {
-            Log::warning("AI API Unreachable: " . $e->getMessage());
+            Log::warning("AI API Unreachable for text: " . substr($text, 0, 20));
         }
         return ['sentiment' => 'Neutral', 'confidence' => 0, 'method' => 'Fallback_Offline'];
     }

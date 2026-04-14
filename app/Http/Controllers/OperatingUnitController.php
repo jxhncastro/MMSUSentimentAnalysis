@@ -17,29 +17,38 @@ class OperatingUnitController extends Controller
 
     public function index(Request $request)
     {
-        
-        // 1. Base Query
+        // 1. Get available years for the dropdown filter
+        $availableYears = Feedback::whereNotNull('year')
+            ->where('year', '!=', '')
+            ->distinct()
+            ->orderBy('year', 'desc')
+            ->pluck('year');
+
+        // 2. Base Query
         $query = Feedback::query();
 
-        // 2. Filter by Operating Unit (Office)
+        // 3. Filter by Year (NEW)
+        if ($request->filled('year')) {
+            $query->where('year', $request->year);
+        }
+
+        // 4. Filter by Operating Unit (Office)
         if ($request->filled('unit')) {
             $query->where(DB::raw('LOWER(TRIM(office))'), strtolower(trim($request->unit)));
         }
 
-        // 3. Filter by Specific Service (using 'services_availed' column)
+        // 5. Filter by Specific Service (using 'services_availed' column)
         if ($request->filled('service') && $request->service !== 'All Services') {
             $query->where('services_availed', 'LIKE', '%' . trim($request->service) . '%');
         }
 
         // --- CHART 1: OVERALL SATISFACTION (Donut) ---
-        // 🟢 FIX: We now TRIM and LOWER the sentiment in SQL to ignore hidden spaces/carriage returns
         $rawSentiment = (clone $query)
             ->selectRaw('LOWER(TRIM(sentiment)) as sentiment_key, count(*) as count')
             ->groupBy('sentiment_key')
             ->pluck('count', 'sentiment_key')
             ->toArray();
 
-        // 🟢 FIX: Safely map the cleaned keys
         $overallSentiment = [
             'Positive' => $rawSentiment['positive'] ?? 0,
             'Negative' => $rawSentiment['negative'] ?? 0,
@@ -67,7 +76,14 @@ class OperatingUnitController extends Controller
         $topPositive = [];
         
         if (!$request->filled('unit')) {
-            $topNegative = Feedback::whereRaw("LOWER(TRIM(sentiment)) = 'negative'")
+            // Apply year filter to global lists as well if a year is selected
+            $globalQuery = Feedback::query();
+            if ($request->filled('year')) {
+                $globalQuery->where('year', $request->year);
+            }
+
+            $topNegative = (clone $globalQuery)
+                ->whereRaw("LOWER(TRIM(sentiment)) = 'negative'")
                 ->whereNotIn(DB::raw('LOWER(TRIM(office))'), $this->excludedUnits)
                 ->selectRaw('office, count(*) as count')
                 ->groupBy('office')
@@ -75,7 +91,8 @@ class OperatingUnitController extends Controller
                 ->limit(5)
                 ->get();
 
-            $topPositive = Feedback::whereRaw("LOWER(TRIM(sentiment)) = 'positive'")
+            $topPositive = (clone $globalQuery)
+                ->whereRaw("LOWER(TRIM(sentiment)) = 'positive'")
                 ->whereNotIn(DB::raw('LOWER(TRIM(office))'), $this->excludedUnits)
                 ->selectRaw('office, count(*) as count')
                 ->groupBy('office')
@@ -90,7 +107,6 @@ class OperatingUnitController extends Controller
             ->take(10)
             ->get()
             ->map(function($item) {
-                // 🟢 FIX: Also trim the display text so the Vue table renders the correct color tags
                 $item->sentiment = ucfirst(strtolower(trim($item->sentiment))); 
                 return $item;
             });
@@ -104,9 +120,11 @@ class OperatingUnitController extends Controller
                 'top_positive'        => $topPositive,
             ],
             'recent_feedback' => $recentFeedback,
+            'availableYears'  => $availableYears, // Send years list to dropdown
             'filters' => [
-                'unit' => $request->unit ?? "",
-                'service' => $request->service ?? "All Services"
+                'unit'    => $request->unit ?? "",
+                'service' => $request->service ?? "All Services",
+                'year'    => $request->year ?? "" // Persist year filter
             ]
         ]);
     }
